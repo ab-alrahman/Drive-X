@@ -1,0 +1,328 @@
+﻿openapi: 3.0.3
+info:
+  title: Car Marketplace Admin API
+  version: 2.0.0
+  description: Admin contract for React dashboard.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local
+
+tags:
+  - name: AdminAuth
+  - name: AdminCars
+  - name: AdminLeads
+  - name: AdminDeals
+  - name: AdminDashboard
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/admin/auth/login:
+    post:
+      tags: [AdminAuth]
+      security: []
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/AdminLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/AuthTokenResponse'
+
+  /v1/admin/auth/refresh:
+    post:
+      tags: [AdminAuth]
+      security: []
+      summary: Refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/AuthTokenResponse'
+
+  /v1/admin/auth/logout:
+    post:
+      tags: [AdminAuth]
+      summary: Revoke current admin refresh token/session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '204':
+          description: Session revoked
+
+  /v1/admin/auth/me:
+    get:
+      tags: [AdminAuth]
+      summary: Get current admin profile and role
+      responses:
+        '200':
+          description: Current admin profile
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/AdminProfile'
+
+  /v1/admin/cars:
+    get:
+      tags: [AdminCars]
+      summary: List cars
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Cars page
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/PaginatedCarsResponse'
+    post:
+      tags: [AdminCars]
+      summary: Create car
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/CreateCarRequest'
+      responses:
+        '201':
+          description: Car created
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/CarDetailsResponse'
+
+  /v1/admin/cars/{carId}:
+    get:
+      tags: [AdminCars]
+      summary: Get car
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Car details
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/CarDetailsResponse'
+    patch:
+      tags: [AdminCars]
+      summary: Update car
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/UpdateCarRequest'
+      responses:
+        '200':
+          description: Car updated
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/CarDetailsResponse'
+    delete:
+      tags: [AdminCars]
+      summary: Soft-delete car
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Deleted
+
+  /v1/admin/cars/{carId}/images:
+    post:
+      tags: [AdminCars]
+      summary: Upload car image
+      description: Stores the uploaded file on the backend local filesystem for MVP deployment.
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                isPrimary:
+                  type: boolean
+                  default: false
+                position:
+                  type: integer
+                  minimum: 0
+                  default: 0
+      responses:
+        '201':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/CarImage'
+
+  /v1/admin/cars/{carId}/images/{imageId}:
+    delete:
+      tags: [AdminCars]
+      summary: Delete car image
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: imageId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Image deleted
+
+  /v1/admin/leads:
+    get:
+      tags: [AdminLeads]
+      summary: List leads
+      responses:
+        '200':
+          description: Leads page
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/PaginatedLeadsResponse'
+
+  /v1/admin/leads/{leadId}:
+    get:
+      tags: [AdminLeads]
+      summary: Get lead
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Lead details
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/LeadResponse'
+    patch:
+      tags: [AdminLeads]
+      summary: Update lead
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/UpdateLeadRequest'
+      responses:
+        '200':
+          description: Updated lead
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/LeadResponse'
+
+  /v1/admin/deals:
+    get:
+      tags: [AdminDeals]
+      summary: List deals
+      responses:
+        '200':
+          description: Deals page
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/PaginatedDealsResponse'
+    post:
+      tags: [AdminDeals]
+      summary: Create deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/CreateDealRequest'
+      responses:
+        '201':
+          description: Deal created
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/DealResponse'
+
+  /v1/admin/dashboard/summary:
+    get:
+      tags: [AdminDashboard]
+      summary: KPI summary
+      responses:
+        '200':
+          description: KPI payload
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/DashboardSummaryResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+

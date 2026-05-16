@@ -1,0 +1,121 @@
+﻿openapi: 3.0.3
+info:
+  title: Car Marketplace Public API
+  version: 2.0.0
+  description: Public contract for React Native visitor app.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local
+
+tags:
+  - name: Public
+  - name: Leads
+
+paths:
+  /v1/public/cars:
+    get:
+      tags: [Public]
+      summary: List cars for visitors
+      description: Returns non-deleted public listings with status AVAILABLE or RESERVED.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: brand
+          schema: { type: string }
+        - in: query
+          name: model
+          schema: { type: string }
+        - in: query
+          name: yearMin
+          schema: { type: integer, minimum: 1980 }
+        - in: query
+          name: yearMax
+          schema: { type: integer, minimum: 1980 }
+        - in: query
+          name: priceMin
+          schema: { type: number, format: double, minimum: 0 }
+        - in: query
+          name: priceMax
+          schema: { type: number, format: double, minimum: 0 }
+        - in: query
+          name: listingType
+          schema:
+            $ref: './openapi.backend.yaml#/components/schemas/ListingType'
+        - in: query
+          name: transmission
+          schema:
+            $ref: './openapi.backend.yaml#/components/schemas/TransmissionType'
+        - in: query
+          name: fuelType
+          schema:
+            $ref: './openapi.backend.yaml#/components/schemas/FuelType'
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [newest, price_asc, price_desc, year_desc, mileage_asc]
+            default: newest
+      responses:
+        '200':
+          description: Cars page
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/PaginatedCarsResponse'
+
+  /v1/public/cars/{carId}:
+    get:
+      tags: [Public]
+      summary: Car details
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Car payload
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/CarDetailsResponse'
+
+  /v1/public/meta/filters:
+    get:
+      tags: [Public]
+      summary: Filters metadata
+      responses:
+        '200':
+          description: Available filters
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/FiltersMetaResponse'
+
+  /v1/public/leads:
+    post:
+      tags: [Leads]
+      summary: Submit buy/rent request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './openapi.backend.yaml#/components/schemas/CreateLeadRequest'
+      responses:
+        '201':
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: './openapi.backend.yaml#/components/schemas/LeadCreatedResponse'

@@ -1,0 +1,1104 @@
+﻿openapi: 3.0.3
+info:
+  title: Car Marketplace API
+  version: 2.0.0
+  description: |
+    API contract for car showroom marketplace (sale, rent, commission).
+    Public endpoints are open for visitors; admin endpoints require JWT.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local
+
+tags:
+  - name: Public
+  - name: Leads
+  - name: AdminAuth
+  - name: AdminCars
+  - name: AdminLeads
+  - name: AdminDeals
+  - name: AdminDashboard
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/public/cars:
+    get:
+      tags: [Public]
+      security: []
+      summary: List cars for visitors
+      description: Returns non-deleted public listings with status AVAILABLE or RESERVED.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: brand
+          schema: { type: string }
+        - in: query
+          name: model
+          schema: { type: string }
+        - in: query
+          name: yearMin
+          schema: { type: integer, minimum: 1980 }
+        - in: query
+          name: yearMax
+          schema: { type: integer, minimum: 1980 }
+        - in: query
+          name: priceMin
+          schema: { type: number, format: double, minimum: 0 }
+        - in: query
+          name: priceMax
+          schema: { type: number, format: double, minimum: 0 }
+        - in: query
+          name: listingType
+          schema:
+            $ref: '#/components/schemas/ListingType'
+        - in: query
+          name: transmission
+          schema:
+            $ref: '#/components/schemas/TransmissionType'
+        - in: query
+          name: fuelType
+          schema:
+            $ref: '#/components/schemas/FuelType'
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [newest, price_asc, price_desc, year_desc, mileage_asc]
+            default: newest
+      responses:
+        '200':
+          description: Paginated cars
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCarsResponse'
+
+  /v1/public/cars/{carId}:
+    get:
+      tags: [Public]
+      security: []
+      summary: Get car details for visitor
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Car details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDetailsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/public/meta/filters:
+    get:
+      tags: [Public]
+      security: []
+      summary: Get available filter values
+      responses:
+        '200':
+          description: Filter metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiltersMetaResponse'
+
+  /v1/public/leads:
+    post:
+      tags: [Leads]
+      security: []
+      summary: Submit buy or rent request (visitor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+      responses:
+        '201':
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadCreatedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          description: Too many requests
+
+  /v1/admin/auth/login:
+    post:
+      tags: [AdminAuth]
+      security: []
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/auth/refresh:
+    post:
+      tags: [AdminAuth]
+      security: []
+      summary: Refresh admin token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/auth/logout:
+    post:
+      tags: [AdminAuth]
+      summary: Revoke current admin refresh token/session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/auth/me:
+    get:
+      tags: [AdminAuth]
+      summary: Get current admin profile and role
+      responses:
+        '200':
+          description: Current admin profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/cars:
+    get:
+      tags: [AdminCars]
+      summary: List cars for admin with all statuses
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/CarStatus'
+      responses:
+        '200':
+          description: Admin cars page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCarsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [AdminCars]
+      summary: Create new car listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCarRequest'
+      responses:
+        '201':
+          description: Car created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDetailsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/admin/cars/{carId}:
+    get:
+      tags: [AdminCars]
+      summary: Get car details for admin
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Car details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDetailsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [AdminCars]
+      summary: Update car listing
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarRequest'
+      responses:
+        '200':
+          description: Car updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDetailsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [AdminCars]
+      summary: Soft-delete car listing
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Car deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/admin/cars/{carId}/images:
+    post:
+      tags: [AdminCars]
+      summary: Upload car image
+      description: Stores the uploaded file on the backend local filesystem for MVP deployment.
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                isPrimary:
+                  type: boolean
+                  default: false
+                position:
+                  type: integer
+                  minimum: 0
+                  default: 0
+      responses:
+        '201':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarImage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/admin/cars/{carId}/images/{imageId}:
+    delete:
+      tags: [AdminCars]
+      summary: Delete car image
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: imageId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Image deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/admin/leads:
+    get:
+      tags: [AdminLeads]
+      summary: List lead requests
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/LeadStatus'
+        - in: query
+          name: intent
+          schema:
+            $ref: '#/components/schemas/LeadIntent'
+      responses:
+        '200':
+          description: Lead list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLeadsResponse'
+
+  /v1/admin/leads/{leadId}:
+    get:
+      tags: [AdminLeads]
+      summary: Get lead details
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lead details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [AdminLeads]
+      summary: Update lead status and notes
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLeadRequest'
+      responses:
+        '200':
+          description: Lead updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/admin/deals:
+    get:
+      tags: [AdminDeals]
+      summary: List deals and commission records
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Deals list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDealsResponse'
+    post:
+      tags: [AdminDeals]
+      summary: Create finalized deal with commission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDealRequest'
+      responses:
+        '201':
+          description: Deal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealResponse'
+
+  /v1/admin/dashboard/summary:
+    get:
+      tags: [AdminDashboard]
+      summary: Dashboard KPI summary
+      responses:
+        '200':
+          description: KPI summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ListingType:
+      type: string
+      enum: [SALE, RENT, BOTH]
+
+    TransmissionType:
+      type: string
+      enum: [AUTOMATIC, MANUAL]
+
+    FuelType:
+      type: string
+      enum: [GASOLINE, DIESEL, HYBRID, ELECTRIC]
+
+    CarCondition:
+      type: string
+      enum: [NEW, USED]
+
+    CarStatus:
+      type: string
+      enum: [AVAILABLE, RESERVED, SOLD, RENTED, INACTIVE]
+
+    LeadIntent:
+      type: string
+      enum: [BUY, RENT]
+
+    LeadStatus:
+      type: string
+      enum: [NEW, CONTACTED, NEGOTIATING, APPROVED, REJECTED, CLOSED]
+
+    ErrorResponse:
+      type: object
+      required: [message, code]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid request payload
+        details:
+          type: array
+          items:
+            type: string
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          enum: [USD, SYP]
+          example: USD
+
+    AdminRole:
+      type: string
+      enum: [OWNER, STAFF]
+
+    CarImage:
+      type: object
+      required: [url, isPrimary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        storageKey:
+          type: string
+          description: Local storage key/path segment generated by the backend.
+        localPath:
+          type: string
+          description: Server-local file path for MVP storage. Do not expose this field in public clients.
+        mimeType:
+          type: string
+          example: image/jpeg
+        sizeBytes:
+          type: integer
+          minimum: 0
+        isPrimary:
+          type: boolean
+        position:
+          type: integer
+          minimum: 0
+
+    Car:
+      type: object
+      required:
+        [id, brand, model, year, listingType, condition, status, specs, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        brand:
+          type: string
+          example: Toyota
+        model:
+          type: string
+          example: Corolla
+        year:
+          type: integer
+          minimum: 1980
+          maximum: 2100
+        listingType:
+          $ref: '#/components/schemas/ListingType'
+        condition:
+          $ref: '#/components/schemas/CarCondition'
+        status:
+          $ref: '#/components/schemas/CarStatus'
+        salePrice:
+          $ref: '#/components/schemas/Money'
+        dailyRentPrice:
+          $ref: '#/components/schemas/Money'
+        monthlyRentPrice:
+          $ref: '#/components/schemas/Money'
+        mileageKm:
+          type: integer
+          minimum: 0
+        transmission:
+          $ref: '#/components/schemas/TransmissionType'
+        fuelType:
+          $ref: '#/components/schemas/FuelType'
+        color:
+          type: string
+        city:
+          type: string
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarImage'
+        specs:
+          type: object
+          required: [engine, seats]
+          properties:
+            engine:
+              type: string
+              example: 1.8L
+            seats:
+              type: integer
+              minimum: 1
+            drivetrain:
+              type: string
+              example: FWD
+            horsepower:
+              type: integer
+              minimum: 1
+        description:
+          type: string
+          maxLength: 2500
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateCarRequest:
+      type: object
+      description: |
+        Conditional validation:
+        - listingType SALE or BOTH requires salePrice.
+        - listingType RENT or BOTH requires dailyRentPrice or monthlyRentPrice.
+      required: [brand, model, year, listingType, condition, status, specs]
+      properties:
+        brand: { type: string }
+        model: { type: string }
+        year: { type: integer, minimum: 1980, maximum: 2100 }
+        listingType:
+          $ref: '#/components/schemas/ListingType'
+        condition:
+          $ref: '#/components/schemas/CarCondition'
+        status:
+          $ref: '#/components/schemas/CarStatus'
+        salePrice:
+          $ref: '#/components/schemas/Money'
+        dailyRentPrice:
+          $ref: '#/components/schemas/Money'
+        monthlyRentPrice:
+          $ref: '#/components/schemas/Money'
+        mileageKm: { type: integer, minimum: 0 }
+        transmission:
+          $ref: '#/components/schemas/TransmissionType'
+        fuelType:
+          $ref: '#/components/schemas/FuelType'
+        color: { type: string }
+        city: { type: string }
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarImage'
+        specs:
+          type: object
+          required: [engine, seats]
+          properties:
+            engine: { type: string }
+            seats: { type: integer, minimum: 1 }
+            drivetrain: { type: string }
+            horsepower: { type: integer, minimum: 1 }
+        description:
+          type: string
+          maxLength: 2500
+
+    UpdateCarRequest:
+      type: object
+      properties:
+        brand: { type: string }
+        model: { type: string }
+        year: { type: integer, minimum: 1980, maximum: 2100 }
+        listingType:
+          $ref: '#/components/schemas/ListingType'
+        condition:
+          $ref: '#/components/schemas/CarCondition'
+        status:
+          $ref: '#/components/schemas/CarStatus'
+        salePrice:
+          $ref: '#/components/schemas/Money'
+        dailyRentPrice:
+          $ref: '#/components/schemas/Money'
+        monthlyRentPrice:
+          $ref: '#/components/schemas/Money'
+        mileageKm: { type: integer, minimum: 0 }
+        transmission:
+          $ref: '#/components/schemas/TransmissionType'
+        fuelType:
+          $ref: '#/components/schemas/FuelType'
+        color: { type: string }
+        city: { type: string }
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarImage'
+        specs:
+          type: object
+          properties:
+            engine: { type: string }
+            seats: { type: integer, minimum: 1 }
+            drivetrain: { type: string }
+            horsepower: { type: integer, minimum: 1 }
+        description:
+          type: string
+          maxLength: 2500
+
+    CreateLeadRequest:
+      type: object
+      description: |
+        Conditional validation:
+        - intent RENT requires rentalStartDate and rentalEndDate.
+        - requestDelivery true requires deliveryAddress.
+      required: [carId, intent, fullName, phone]
+      properties:
+        carId:
+          type: string
+          format: uuid
+        intent:
+          $ref: '#/components/schemas/LeadIntent'
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        phone:
+          type: string
+          example: '+9639XXXXXXXX'
+        email:
+          type: string
+          format: email
+        city:
+          type: string
+        message:
+          type: string
+          maxLength: 2000
+        rentalStartDate:
+          type: string
+          format: date
+        rentalEndDate:
+          type: string
+          format: date
+        requestDelivery:
+          type: boolean
+          default: false
+        deliveryAddress:
+          type: string
+          maxLength: 500
+
+    LeadResponse:
+      type: object
+      required: [id, carId, intent, status, fullName, phone, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        carId:
+          type: string
+          format: uuid
+        intent:
+          $ref: '#/components/schemas/LeadIntent'
+        status:
+          $ref: '#/components/schemas/LeadStatus'
+        fullName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        city:
+          type: string
+        message:
+          type: string
+        rentalStartDate:
+          type: string
+          format: date
+        rentalEndDate:
+          type: string
+          format: date
+        requestDelivery:
+          type: boolean
+        deliveryAddress:
+          type: string
+        adminNotes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateLeadRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/LeadStatus'
+        adminNotes:
+          type: string
+          maxLength: 2000
+
+    LeadCreatedResponse:
+      type: object
+      required: [leadId, message]
+      properties:
+        leadId:
+          type: string
+          format: uuid
+        message:
+          type: string
+          example: Your request has been received successfully.
+
+    AdminLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    AuthTokenResponse:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 3600
+
+    AdminProfile:
+      type: object
+      required: [id, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          $ref: '#/components/schemas/AdminRole'
+
+    DealResponse:
+      type: object
+      required: [id, leadId, carId, type, finalPrice, commission, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        leadId:
+          type: string
+          format: uuid
+        carId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [SALE, RENT]
+        finalPrice:
+          $ref: '#/components/schemas/Money'
+        commissionType:
+          type: string
+          enum: [PERCENTAGE, FIXED]
+        commissionValue:
+          type: number
+          format: double
+          minimum: 0
+        commission:
+          $ref: '#/components/schemas/Money'
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateDealRequest:
+      type: object
+      required: [leadId, carId, type, finalPrice, commissionType, commissionValue]
+      properties:
+        leadId:
+          type: string
+          format: uuid
+        carId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [SALE, RENT]
+        finalPrice:
+          $ref: '#/components/schemas/Money'
+        commissionType:
+          type: string
+          enum: [PERCENTAGE, FIXED]
+        commissionValue:
+          type: number
+          format: double
+          minimum: 0
+        notes:
+          type: string
+
+    DashboardSummaryResponse:
+      type: object
+      required:
+        [totalCars, availableCars, activeLeads, closedDeals, monthlyCommission, conversionRate]
+      properties:
+        totalCars:
+          type: integer
+          minimum: 0
+        availableCars:
+          type: integer
+          minimum: 0
+        activeLeads:
+          type: integer
+          minimum: 0
+        closedDeals:
+          type: integer
+          minimum: 0
+        monthlyCommission:
+          $ref: '#/components/schemas/Money'
+        conversionRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+
+    PaginatedCarsResponse:
+      type: object
+      required: [items, page, limit, total, totalPages, hasNext]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Car'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+
+    PaginatedLeadsResponse:
+      type: object
+      required: [items, page, limit, total, totalPages, hasNext]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeadResponse'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+
+    PaginatedDealsResponse:
+      type: object
+      required: [items, page, limit, total, totalPages, hasNext]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DealResponse'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+
+    CarDetailsResponse:
+      allOf:
+        - $ref: '#/components/schemas/Car'
+
+    FiltersMetaResponse:
+      type: object
+      properties:
+        brands:
+          type: array
+          items: { type: string }
+        models:
+          type: array
+          items: { type: string }
+        years:
+          type: array
+          items: { type: integer }
+        fuelTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FuelType'
+        transmissionTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransmissionType'
+        listingTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListingType'

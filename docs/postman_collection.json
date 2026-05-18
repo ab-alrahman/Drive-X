@@ -1,0 +1,334 @@
+{
+  "info": {
+    "name": "DriveX API",
+    "description": "Postman collection for DriveX Express.js backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "carId", "value": "" },
+    { "key": "leadId", "value": "" },
+    { "key": "dealId", "value": "" },
+    { "key": "imageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "List Public Cars",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/public/cars?page=1&limit=12&sortBy=newest",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "public", "cars"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "12" },
+                { "key": "sortBy", "value": "newest" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Public Car",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/public/cars/{{carId}}"
+          }
+        },
+        {
+          "name": "Filters Metadata",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/public/meta/filters"
+          }
+        },
+        {
+          "name": "Create Lead",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"intent\": \"BUY\",\n  \"fullName\": \"Test Customer\",\n  \"phone\": \"+963900000000\",\n  \"email\": \"customer@example.com\",\n  \"city\": \"Damascus\",\n  \"message\": \"I am interested in this car.\",\n  \"requestDelivery\": false\n}"
+            },
+            "url": "{{baseUrl}}/v1/public/leads"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.accessToken) pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"ChangeMe123\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/auth/login"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.accessToken) pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/auth/refresh"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "url": "{{baseUrl}}/v1/admin/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Cars",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "List Admin Cars",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/cars?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Create Car",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('carId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Toyota\",\n  \"model\": \"Corolla\",\n  \"year\": 2022,\n  \"listingType\": \"SALE\",\n  \"condition\": \"USED\",\n  \"status\": \"AVAILABLE\",\n  \"salePrice\": { \"amount\": 18000, \"currency\": \"USD\" },\n  \"mileageKm\": 35000,\n  \"transmission\": \"AUTOMATIC\",\n  \"fuelType\": \"GASOLINE\",\n  \"color\": \"White\",\n  \"city\": \"Damascus\",\n  \"specs\": { \"engine\": \"1.8L\", \"seats\": 5, \"drivetrain\": \"FWD\", \"horsepower\": 139 },\n  \"description\": \"Clean car ready for sale.\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/cars"
+          }
+        },
+        {
+          "name": "Get Admin Car",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/cars/{{carId}}"
+          }
+        },
+        {
+          "name": "Update Car",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESERVED\",\n  \"city\": \"Damascus\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/cars/{{carId}}"
+          }
+        },
+        {
+          "name": "Upload Car Image",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "isPrimary", "value": "true", "type": "text" },
+                { "key": "position", "value": "0", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/v1/admin/cars/{{carId}}/images"
+          }
+        },
+        {
+          "name": "Delete Car Image",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/admin/cars/{{carId}}/images/{{imageId}}"
+          }
+        },
+        {
+          "name": "Soft Delete Car",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/admin/cars/{{carId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Leads",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "List Leads",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/leads?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get Lead",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/leads/{{leadId}}"
+          }
+        },
+        {
+          "name": "Update Lead",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONTACTED\",\n  \"adminNotes\": \"Called customer.\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/leads/{{leadId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Deals",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "List Deals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/deals?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Create Deal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('dealId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{leadId}}\",\n  \"carId\": \"{{carId}}\",\n  \"type\": \"SALE\",\n  \"finalPrice\": { \"amount\": 17500, \"currency\": \"USD\" },\n  \"commissionType\": \"PERCENTAGE\",\n  \"commissionValue\": 2.5,\n  \"notes\": \"Deal finalized.\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/admin/deals"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Dashboard",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/admin/dashboard/summary"
+          }
+        }
+      ]
+    }
+  ]
+}

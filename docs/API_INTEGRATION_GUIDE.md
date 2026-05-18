@@ -1,4 +1,4 @@
-﻿# API Integration Guide (React Native + React + NestJS)
+﻿# API Integration Guide (React Native + React + Express.js + TypeScript)
 
 ## 1. Integration Strategy
 1. Backend is the single source of truth through `openapi.yaml`.
@@ -21,12 +21,12 @@
 - `GET/POST /v1/admin/deals`.
 - `GET /v1/admin/dashboard/summary`.
 
-## 3. NestJS Module Mapping
-1. `AuthModule` -> login/refresh.
-2. `CarsModule` -> public read + admin CRUD.
-3. `LeadsModule` -> public create + admin management.
-4. `DealsModule` -> finalized transactions + commissions.
-5. `DashboardModule` -> KPI aggregation endpoints.
+## 3. Express.js Module Mapping
+1. `src/modules/auth` -> login/refresh/logout/me.
+2. `src/modules/cars` -> public read + admin CRUD + local image upload.
+3. `src/modules/leads` -> public create + admin management.
+4. `src/modules/deals` -> finalized transactions + commissions.
+5. `src/modules/dashboard` -> KPI aggregation endpoints.
 
 ## 4. Validation Rules
 1. Visitor must submit at least: `carId`, `intent`, `fullName`, `phone`.
@@ -88,3 +88,4 @@ For the MVP, uploaded car images are stored on the backend local filesystem.
 ## 10. Suggested Versioning
 - Keep current contract at `v1`.
 - Introduce breaking changes only in `v2` with migration notes.
+

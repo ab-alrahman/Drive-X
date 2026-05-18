@@ -13,7 +13,7 @@ Showrooms often lose opportunities due to manual lead handling and weak inventor
 ## 3. Proposed Solution
 1. React Native application for visitors.
 2. React dashboard for admin users.
-3. NestJS backend exposing REST API documented via OpenAPI.
+3. Express.js + TypeScript backend exposing REST API documented via OpenAPI.
 
 ## 4. System Architecture
 1. Presentation Layer
@@ -21,7 +21,7 @@ Showrooms often lose opportunities due to manual lead handling and weak inventor
 - React Admin Dashboard
 
 2. Application Layer
-- NestJS modules: Auth, Cars, Leads, Deals, Dashboard
+- Express.js + TypeScript modules: Auth, Cars, Leads, Deals, Dashboard
 
 3. Data Layer
 - Relational database storing cars, requests, deals, users, commissions
@@ -45,7 +45,7 @@ A new API contract was designed to enforce clean boundaries between frontend and
 ## 7. Quality Attributes
 1. Security via JWT and role-based access.
 2. Performance via pagination and indexed filters.
-3. Maintainability via modular NestJS design and versioned API.
+3. Maintainability via modular Express.js + TypeScript design and versioned API.
 4. Scalability for future features (payment, notifications, user accounts).
 
 ## 8. KPIs and Measurement Plan
@@ -80,3 +80,4 @@ A new API contract was designed to enforce clean boundaries between frontend and
 2. Customer account system and favorites.
 3. Push notifications and WhatsApp follow-up automation.
 4. Recommendation engine for suggested cars.
+

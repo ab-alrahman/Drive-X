@@ -1,10 +1,10 @@
-# Car Marketplace Project Pack
+﻿# Car Marketplace Project Pack
 
 This package contains a professional, university-ready project baseline for a real-world style car marketplace (sale, buy, rent, commission model) built with:
 
 - Mobile app: React Native
 - Admin dashboard: React
-- Backend API: NestJS
+- Backend API: Express.js + TypeScript
 
 ## Files
 
@@ -15,7 +15,7 @@ This package contains a professional, university-ready project baseline for a re
   Master full API contract (OpenAPI 3.0.3).
 
 - `openapi.backend.yaml`  
-  Backend-facing complete contract for NestJS implementation.
+  Backend-facing complete contract for Express.js + TypeScript implementation.
 
 - `openapi.frontend-admin.yaml`  
   Admin dashboard contract (React) with admin-only routes.
@@ -24,7 +24,7 @@ This package contains a professional, university-ready project baseline for a re
   Public mobile contract (React Native) with visitor routes.
 
 - `API_INTEGRATION_GUIDE.md`  
-  Clear implementation mapping for React Native, React dashboard, and NestJS modules.
+  Clear implementation mapping for React Native, React dashboard, and Express.js + TypeScript modules.
 
 - `PROJECT_THESIS.md`  
   Complete client/university presentation narrative (problem, solution, architecture, process, KPIs, risks).
@@ -34,3 +34,4 @@ This package contains a professional, university-ready project baseline for a re
 
 - `design_system.md`  
   UI/UX baseline notes.
+

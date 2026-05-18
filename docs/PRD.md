@@ -65,10 +65,10 @@ The system centralizes inventory, customer leads, and transaction status to impr
 5. Deal and commission view.
 6. KPI cards: total cars, active leads, conversion rate, monthly commission.
 
-### 7.3 Backend (NestJS)
+### 7.3 Backend (Express.js + TypeScript)
 1. REST API with OpenAPI docs.
 2. RBAC: admin-only management endpoints.
-3. Input validation (class-validator).
+3. Input validation (Zod).
 4. Standard error format.
 5. Audit fields (`createdAt`, `updatedAt`, `updatedBy`, `deletedAt` where soft delete applies).
 
@@ -76,7 +76,7 @@ The system centralizes inventory, customer leads, and transaction status to impr
 1. Performance: `p95 < 600ms` for list endpoints with caching.
 2. Security: JWT access/refresh, rate limit for public lead endpoint.
 3. Reliability: 99.5% monthly availability target.
-4. Maintainability: modular NestJS architecture, API versioning (`/v1`).
+4. Maintainability: modular Express.js + TypeScript architecture, API versioning (`/v1`).
 5. Localization-ready: Arabic-first with English-ready content fields.
 6. Storage: MVP car images are stored on the backend local filesystem, with a migration path to object storage later.
 
@@ -120,3 +120,5 @@ Mitigation: indexed filters, pagination, and caching.
 3. Week 3: React Native visitor app.
 4. Week 4: React admin dashboard + analytics.
 5. Week 5: QA, UAT demo, and thesis presentation prep.
+
+

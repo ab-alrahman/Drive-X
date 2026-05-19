@@ -5,6 +5,7 @@ import path from 'path';
 import { env } from './config/env';
 import { swaggerRoutes } from './docs/swagger';
 import { errorMiddleware } from './middleware/error.middleware';
+import { requestLogger } from './middleware/request-logger.middleware';
 import { router } from './routes';
 
 export const app = express();
@@ -33,6 +34,7 @@ app.use(
   })
 );
 app.use(express.json({ limit: '1mb' }));
+app.use(requestLogger);
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 
 app.get('/health', (_req, res) => {

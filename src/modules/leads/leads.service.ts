@@ -65,9 +65,10 @@ export async function listLeads(filters: any) {
   const count = await query<{ count: string }>(`SELECT COUNT(*) FROM leads ${whereSql}`, params);
   const total = Number(count.rows[0].count);
   const pageParams = [...params, filters.limit, offset(filters.page, filters.limit)];
+  const orderBy = filters.sortBy === 'oldest' ? 'created_at ASC' : 'created_at DESC';
   const result = await query(
     `SELECT * FROM leads ${whereSql}
-     ORDER BY created_at DESC
+     ORDER BY ${orderBy}
      LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
     pageParams
   );
@@ -101,4 +102,3 @@ export async function updateLead(id: string, data: any, adminId: string) {
 
   return mapLead(result.rows[0]);
 }
-

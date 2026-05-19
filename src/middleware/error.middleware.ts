@@ -1,4 +1,5 @@
 import { ErrorRequestHandler } from 'express';
+import multer from 'multer';
 import { ZodError } from 'zod';
 import { AppError } from '../shared/errors';
 
@@ -19,6 +20,13 @@ export const errorMiddleware: ErrorRequestHandler = (err, _req, res, _next) => {
     });
   }
 
+  if (err instanceof multer.MulterError || err.message?.includes('uploads are allowed')) {
+    return res.status(400).json({
+      code: 'UPLOAD_ERROR',
+      message: err.code === 'LIMIT_FILE_SIZE' ? 'Image size must not exceed 5MB' : err.message
+    });
+  }
+
   console.error(err);
 
   return res.status(500).json({
@@ -26,4 +34,3 @@ export const errorMiddleware: ErrorRequestHandler = (err, _req, res, _next) => {
     message: 'Unexpected server error'
   });
 };
-

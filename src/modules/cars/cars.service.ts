@@ -116,6 +116,9 @@ function buildFilters(filters: ListCarsQuery, publicOnly: boolean) {
 function sortClause(sortBy: string) {
   const clauses: Record<string, string> = {
     newest: 'c.created_at DESC',
+    priceAsc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) ASC NULLS LAST',
+    priceDesc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) DESC NULLS LAST',
+    yearDesc: 'c.year DESC',
     price_asc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) ASC NULLS LAST',
     price_desc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) DESC NULLS LAST',
     year_desc: 'c.year DESC',
@@ -303,4 +306,3 @@ export async function filtersMeta() {
     listingTypes: ['SALE', 'RENT', 'BOTH']
   };
 }
-

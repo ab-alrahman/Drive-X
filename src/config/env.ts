@@ -9,10 +9,11 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  ACCESS_TOKEN_TTL: z.string().default(process.env.JWT_ACCESS_EXPIRES_IN ?? '15m'),
+  REFRESH_TOKEN_TTL: z.string().default(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d'),
   UPLOAD_DIR: z.string().default('uploads'),
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:6000'),
+  ADMIN_WEB_ORIGIN: z.string().default('http://localhost:5173'),
   DB_USER: z.string().default('postgres'),
   DB_HOST: z.string().default('localhost'),
   DB_NAME: z.string().default('drivex'),
@@ -21,4 +22,3 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
-

@@ -26,8 +26,9 @@ function mapDeal(row: any) {
 export async function listDeals(filters: any) {
   const count = await query<{ count: string }>(`SELECT COUNT(*) FROM deals`);
   const total = Number(count.rows[0].count);
+  const orderBy = filters.sortBy === 'oldest' ? 'created_at ASC' : 'created_at DESC';
   const result = await query(
-    `SELECT * FROM deals ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+    `SELECT * FROM deals ORDER BY ${orderBy} LIMIT $1 OFFSET $2`,
     [filters.limit, offset(filters.page, filters.limit)]
   );
 

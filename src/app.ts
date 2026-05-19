@@ -14,7 +14,24 @@ app.use(
     contentSecurityPolicy: false
   })
 );
-app.use(cors());
+const allowedOrigins = env.ADMIN_WEB_ORIGIN.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false
+  })
+);
 app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 

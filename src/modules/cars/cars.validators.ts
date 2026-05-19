@@ -14,7 +14,6 @@ const specsSchema = z.object({
 });
 
 export const listCarsQuerySchema = paginationQuerySchema.extend({
-  limit: z.coerce.number().int().min(1).max(50).default(12),
   search: z.string().optional(),
   brand: z.string().optional(),
   model: z.string().optional(),
@@ -26,7 +25,9 @@ export const listCarsQuerySchema = paginationQuerySchema.extend({
   transmission: z.enum(['AUTOMATIC', 'MANUAL']).optional(),
   fuelType: z.enum(['GASOLINE', 'DIESEL', 'HYBRID', 'ELECTRIC']).optional(),
   status: z.enum(['AVAILABLE', 'RESERVED', 'SOLD', 'RENTED', 'INACTIVE']).optional(),
-  sortBy: z.enum(['newest', 'price_asc', 'price_desc', 'year_desc', 'mileage_asc']).default('newest')
+  sortBy: z
+    .enum(['newest', 'priceAsc', 'priceDesc', 'yearDesc', 'price_asc', 'price_desc', 'year_desc', 'mileage_asc'])
+    .default('newest')
 });
 
 const carSchema = z.object({

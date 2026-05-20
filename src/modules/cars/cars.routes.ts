@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requireRole } from '../../middleware/auth.middleware';
 import { uploadCarImage } from '../../middleware/upload.middleware';
 import { validateBody, validateQuery } from '../../middleware/validate.middleware';
 import * as controller from './cars.controller';
@@ -17,7 +17,6 @@ adminCarRoutes.get('/cars', validateQuery(listCarsQuerySchema), controller.listA
 adminCarRoutes.post('/cars', validateBody(createCarSchema), controller.createCar);
 adminCarRoutes.get('/cars/:carId', controller.getAdminCar);
 adminCarRoutes.patch('/cars/:carId', validateBody(updateCarSchema), controller.updateCar);
-adminCarRoutes.delete('/cars/:carId', controller.deleteCar);
+adminCarRoutes.delete('/cars/:carId', requireRole('OWNER'), controller.deleteCar);
 adminCarRoutes.post('/cars/:carId/images', uploadCarImage.single('file'), controller.uploadImage);
 adminCarRoutes.delete('/cars/:carId/images/:imageId', controller.deleteImage);
-

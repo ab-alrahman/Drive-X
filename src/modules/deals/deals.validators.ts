@@ -6,7 +6,9 @@ const moneySchema = z.object({
   currency: z.enum(['USD', 'SYP'])
 });
 
-export const listDealsQuerySchema = paginationQuerySchema;
+export const listDealsQuerySchema = paginationQuerySchema.extend({
+  sortBy: z.enum(['newest', 'oldest']).default('newest')
+});
 
 export const createDealSchema = z.object({
   leadId: z.string().uuid(),
@@ -17,4 +19,3 @@ export const createDealSchema = z.object({
   commissionValue: z.number().nonnegative(),
   notes: z.string().optional()
 });
-

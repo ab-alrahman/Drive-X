@@ -21,21 +21,38 @@ function hashToken(token: string) {
 
 function signAccessToken(user: AuthUser) {
   return jwt.sign(user, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions['expiresIn']
+    expiresIn: env.ACCESS_TOKEN_TTL as SignOptions['expiresIn']
   });
 }
 
 function signRefreshToken(user: AuthUser) {
   return jwt.sign({ id: user.id, email: user.email, role: user.role }, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn']
+    expiresIn: env.REFRESH_TOKEN_TTL as SignOptions['expiresIn']
   });
+}
+
+function ttlToPostgresInterval(ttl: string) {
+  const match = ttl.trim().match(/^(\d+)\s*([smhd])$/i);
+  if (!match) {
+    return ttl;
+  }
+
+  const [, value, unit] = match;
+  const units: Record<string, string> = {
+    s: 'seconds',
+    m: 'minutes',
+    h: 'hours',
+    d: 'days'
+  };
+
+  return `${value} ${units[unit.toLowerCase()]}`;
 }
 
 async function storeRefreshToken(userId: string, refreshToken: string) {
   await query(
     `INSERT INTO refresh_tokens (admin_user_id, token_hash, expires_at)
-     VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-    [userId, hashToken(refreshToken)]
+     VALUES ($1, $2, NOW() + $3::interval)`,
+    [userId, hashToken(refreshToken), ttlToPostgresInterval(env.REFRESH_TOKEN_TTL)]
   );
 }
 
@@ -56,7 +73,7 @@ export async function login(email: string, password: string) {
 
   await storeRefreshToken(user.id, refreshToken);
 
-  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: "15 days" };
+  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: env.ACCESS_TOKEN_TTL };
 }
 
 export async function refresh(refreshToken: string) {
@@ -85,7 +102,7 @@ export async function refresh(refreshToken: string) {
   await query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1`, [tokenHash]);
   await storeRefreshToken(payload.id, nextRefreshToken);
 
-  return { accessToken, refreshToken: nextRefreshToken, tokenType: 'Bearer', expiresIn: "15 days" };
+  return { accessToken, refreshToken: nextRefreshToken, tokenType: 'Bearer', expiresIn: env.ACCESS_TOKEN_TTL };
 }
 
 export async function logout(refreshToken: string) {

@@ -10,8 +10,8 @@
     "start": "node dist/server.js",
     "db:setup": "tsx src/scripts/apply-schema.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
-    "db:migrate": "node-pg-migrate up",
-    "db:rollback": "node-pg-migrate down",
+    "db:migrate": "node-pg-migrate up --config-file pgmigrate.config.cjs",
+    "db:rollback": "node-pg-migrate down --config-file pgmigrate.config.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

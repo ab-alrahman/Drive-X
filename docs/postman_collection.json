@@ -61,6 +61,18 @@
         },
         {
           "name": "Create Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.leadId) pm.collectionVariables.set('leadId', json.leadId);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -210,6 +222,18 @@
         },
         {
           "name": "Upload Car Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('imageId', json.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "body": {

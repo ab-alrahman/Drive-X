@@ -13,7 +13,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL: z.string().default(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d'),
   UPLOAD_DIR: z.string().default('uploads'),
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:6000'),
-  ADMIN_WEB_ORIGIN: z.string().default('http://localhost:5173'),
+  ADMIN_WEB_ORIGIN: z.string().default('http://localhost:3000'),
   LOG_DIR: z.string().default('logs'),
   DB_USER: z.string().default('postgres'),
   DB_HOST: z.string().default('localhost'),

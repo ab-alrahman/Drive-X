@@ -1,20 +1,23 @@
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { env } from './env';
 
+const ssl = env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined;
 
-export const pool = new Pool({
-  user: env.DB_USER,
-  host: env.DB_HOST,
-  database: env.DB_NAME,
-  password: String(env.DB_PASSWORD),
-  port: Number(env.DB_PORT) || 5432,  
-  // ssl: {
-  //   rejectUnauthorized: false,
-  // },
-  // max: 20,
-  // idleTimeoutMillis: 30000,
-  // connectionTimeoutMillis: 2000,
-});
+const poolConfig: PoolConfig = env.DATABASE_URL
+  ? {
+      connectionString: env.DATABASE_URL,
+      ssl
+    }
+  : {
+      user: env.DB_USER,
+      host: env.DB_HOST,
+      database: env.DB_NAME,
+      password: String(env.DB_PASSWORD),
+      port: Number(env.DB_PORT) || 5432,
+      ssl
+    };
+
+export const pool = new Pool(poolConfig);
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,

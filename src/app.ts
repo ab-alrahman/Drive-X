@@ -10,6 +10,10 @@ import { router } from './routes';
 
 export const app = express();
 
+if (env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
 app.use(
   helmet({
     contentSecurityPolicy: false

@@ -20,7 +20,7 @@ export const createLeadSchema = z
     fullName: z.string().min(2).max(120),
     phone: phoneSchema,
     email: z.string().email().optional(),
-    city: z.string().min(1).max(80),
+    city: z.string().min(1).max(80).optional(),
     message: z.string().max(2000).optional(),
     rentalStartDate: z.string().date().optional(),
     rentalEndDate: z.string().date().optional(),

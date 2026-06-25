@@ -1,6 +1,10 @@
 import { RequestHandler } from 'express';
 import * as dealsService from './deals.service';
 
+function paramValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value ?? '';
+}
+
 export const listDeals: RequestHandler = async (req, res, next) => {
   try {
     res.json(await dealsService.listDeals(req.query));
@@ -17,3 +21,27 @@ export const createDeal: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getDeal: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await dealsService.getDeal(paramValue(req.params.dealId)));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateDeal: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await dealsService.updateDeal(paramValue(req.params.dealId), req.body));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteDeal: RequestHandler = async (req, res, next) => {
+  try {
+    await dealsService.deleteDeal(paramValue(req.params.dealId));
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};

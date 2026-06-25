@@ -21,3 +21,6 @@ export function forbidden(message = 'Forbidden') {
   return new AppError(403, 'FORBIDDEN', message);
 }
 
+export function conflict(message = 'Resource already exists') {
+  return new AppError(409, 'CONFLICT', message);
+}

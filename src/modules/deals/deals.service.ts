@@ -1,4 +1,5 @@
 import { query } from '../../config/db';
+import { notFound } from '../../shared/errors';
 import { offset, paginationMeta } from '../../shared/pagination';
 
 function commissionAmount(finalPrice: number, commissionType: string, commissionValue: number) {
@@ -33,6 +34,14 @@ export async function listDeals(filters: any) {
   );
 
   return { items: result.rows.map(mapDeal), ...paginationMeta(filters.page, filters.limit, total) };
+}
+
+export async function getDeal(id: string) {
+  const result = await query(`SELECT * FROM deals WHERE id = $1`, [id]);
+  if (!result.rows[0]) {
+    throw notFound('Deal not found');
+  }
+  return mapDeal(result.rows[0]);
 }
 
 export async function createDeal(data: any, adminId: string) {
@@ -70,4 +79,54 @@ export async function createDeal(data: any, adminId: string) {
   ]);
 
   return mapDeal(result.rows[0]);
+}
+
+export async function updateDeal(id: string, data: any) {
+  const current = await getDeal(id);
+  const finalPrice = data.finalPrice ?? current.finalPrice;
+  const commissionType = data.commissionType ?? current.commissionType;
+  const commissionValue = data.commissionValue ?? current.commissionValue;
+  const amount = commissionAmount(finalPrice.amount, commissionType, commissionValue);
+
+  const result = await query(
+    `UPDATE deals SET
+      lead_id = $1,
+      car_id = $2,
+      type = $3,
+      final_price_amount = $4,
+      final_price_currency = $5,
+      commission_type = $6,
+      commission_value = $7,
+      commission_amount = $8,
+      commission_currency = $9,
+      notes = $10
+     WHERE id = $11
+     RETURNING *`,
+    [
+      data.leadId ?? current.leadId,
+      data.carId ?? current.carId,
+      data.type ?? current.type,
+      finalPrice.amount,
+      finalPrice.currency,
+      commissionType,
+      commissionValue,
+      amount,
+      finalPrice.currency,
+      data.notes ?? current.notes,
+      id
+    ]
+  );
+
+  if (!result.rows[0]) {
+    throw notFound('Deal not found');
+  }
+
+  return mapDeal(result.rows[0]);
+}
+
+export async function deleteDeal(id: string) {
+  const result = await query(`DELETE FROM deals WHERE id = $1`, [id]);
+  if (!result.rowCount) {
+    throw notFound('Deal not found');
+  }
 }

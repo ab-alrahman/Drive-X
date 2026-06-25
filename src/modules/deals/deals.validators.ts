@@ -19,3 +19,5 @@ export const createDealSchema = z.object({
   commissionValue: z.number().nonnegative(),
   notes: z.string().optional()
 });
+
+export const updateDealSchema = createDealSchema.partial();

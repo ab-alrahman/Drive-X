@@ -1,4 +1,4 @@
-﻿-- PostgreSQL schema aligned with openapi.yaml (v2.0.0)
+-- PostgreSQL schema aligned with openapi.yaml (v2.0.0)
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -76,6 +76,25 @@ CREATE TABLE IF NOT EXISTS admin_users (
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS customer_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  full_name VARCHAR(120) NOT NULL,
+  phone VARCHAR(30),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS customer_refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_user_id UUID NOT NULL REFERENCES customer_users(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
@@ -173,6 +192,13 @@ CREATE TABLE IF NOT EXISTS deals (
   created_by UUID REFERENCES admin_users(id)
 );
 
+CREATE TABLE IF NOT EXISTS customer_favorites (
+  customer_user_id UUID NOT NULL REFERENCES customer_users(id) ON DELETE CASCADE,
+  car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (customer_user_id, car_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_cars_brand_model ON cars (brand, model);
 CREATE INDEX IF NOT EXISTS idx_cars_status ON cars (status);
 CREATE INDEX IF NOT EXISTS idx_cars_listing_type ON cars (listing_type);
@@ -180,7 +206,10 @@ CREATE INDEX IF NOT EXISTS idx_cars_price_sale ON cars (sale_price_amount);
 CREATE INDEX IF NOT EXISTS idx_cars_deleted_at ON cars (deleted_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_admin_user ON refresh_tokens (admin_user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
+CREATE INDEX IF NOT EXISTS idx_customer_refresh_tokens_user ON customer_refresh_tokens (customer_user_id);
+CREATE INDEX IF NOT EXISTS idx_customer_refresh_tokens_expires_at ON customer_refresh_tokens (expires_at);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads (status);
 CREATE INDEX IF NOT EXISTS idx_leads_intent ON leads (intent);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_created_at ON deals (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_customer_favorites_car ON customer_favorites (car_id);

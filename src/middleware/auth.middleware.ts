@@ -11,10 +11,17 @@ export interface AuthUser {
   role: AdminRole;
 }
 
+export interface CustomerAuthUser {
+  id: string;
+  email: string;
+  role: 'CUSTOMER';
+}
+
 declare global {
   namespace Express {
     interface Request {
       user?: AuthUser;
+      customer?: CustomerAuthUser;
     }
   }
 }
@@ -47,3 +54,22 @@ export function requireRole(...roles: AdminRole[]): RequestHandler {
   };
 }
 
+export const requireCustomerAuth: RequestHandler = (req, _res, next) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
+
+  if (!token) {
+    throw unauthorized();
+  }
+
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as CustomerAuthUser;
+    if (payload.role !== 'CUSTOMER') {
+      throw unauthorized('Invalid customer token');
+    }
+    req.customer = payload;
+    next();
+  } catch {
+    throw unauthorized('Invalid or expired token');
+  }
+};

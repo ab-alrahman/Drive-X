@@ -48,6 +48,24 @@ function ttlToPostgresInterval(ttl: string) {
   return `${value} ${units[unit.toLowerCase()]}`;
 }
 
+function ttlToSeconds(ttl: string) {
+  const match = ttl.trim().match(/^(\d+)\s*([smhd])$/i);
+  if (!match) {
+    const parsed = Number(ttl);
+    return Number.isFinite(parsed) ? parsed : 3600;
+  }
+
+  const [, value, unit] = match;
+  const multipliers: Record<string, number> = {
+    s: 1,
+    m: 60,
+    h: 60 * 60,
+    d: 24 * 60 * 60
+  };
+
+  return Number(value) * multipliers[unit.toLowerCase()];
+}
+
 async function storeRefreshToken(userId: string, refreshToken: string) {
   await query(
     `INSERT INTO refresh_tokens (admin_user_id, token_hash, expires_at)
@@ -73,7 +91,7 @@ export async function login(email: string, password: string) {
 
   await storeRefreshToken(user.id, refreshToken);
 
-  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: env.ACCESS_TOKEN_TTL };
+  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ttlToSeconds(env.ACCESS_TOKEN_TTL) };
 }
 
 export async function refresh(refreshToken: string) {
@@ -102,7 +120,7 @@ export async function refresh(refreshToken: string) {
   await query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1`, [tokenHash]);
   await storeRefreshToken(payload.id, nextRefreshToken);
 
-  return { accessToken, refreshToken: nextRefreshToken, tokenType: 'Bearer', expiresIn: env.ACCESS_TOKEN_TTL };
+  return { accessToken, refreshToken: nextRefreshToken, tokenType: 'Bearer', expiresIn: ttlToSeconds(env.ACCESS_TOKEN_TTL) };
 }
 
 export async function logout(refreshToken: string) {

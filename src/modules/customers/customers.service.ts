@@ -186,3 +186,21 @@ export async function getById(customerId: string) {
 
   return publicProfile(result.rows[0]);
 }
+
+export async function updateProfile(customerId: string, data: { fullName?: string; phone?: string }) {
+  const result = await query<CustomerRow>(
+    `UPDATE customer_users SET
+      full_name = COALESCE($1, full_name),
+      phone = COALESCE($2, phone),
+      updated_at = NOW()
+     WHERE id = $3
+     RETURNING id, email, full_name, phone`,
+    [data.fullName, data.phone, customerId]
+  );
+
+  if (!result.rows[0]) {
+    throw unauthorized('Customer account not found');
+  }
+
+  return publicProfile(result.rows[0]);
+}

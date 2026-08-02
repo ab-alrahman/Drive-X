@@ -3,7 +3,7 @@ import { notFound } from '../../shared/errors';
 import { offset, paginationMeta } from '../../shared/pagination';
 
 function mapLead(row: any) {
-  return {
+  const lead: any = {
     id: row.id,
     carId: row.car_id,
     intent: row.intent,
@@ -21,6 +21,17 @@ function mapLead(row: any) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+
+  if (row.brand) {
+    lead.car = {
+      brand: row.brand,
+      model: row.model,
+      year: row.year,
+      imageUrl: row.primary_image || null
+    };
+  }
+
+  return lead;
 }
 
 export async function createLead(data: any) {
@@ -82,6 +93,41 @@ export async function getLead(id: string) {
     throw notFound('Lead not found');
   }
   return mapLead(result.rows[0]);
+}
+
+export async function getMyLeads(customerEmail: string, filters: any) {
+  const where: string[] = ['email = $1'];
+  const params: unknown[] = [customerEmail];
+
+  if (filters.status) {
+    params.push(filters.status);
+    where.push(`status = $${params.length}`);
+  }
+  if (filters.intent) {
+    params.push(filters.intent);
+    where.push(`intent = $${params.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const count = await query<{ count: string }>(`SELECT COUNT(*) FROM leads ${whereSql}`, params);
+  const total = Number(count.rows[0].count);
+  const pageParams = [...params, filters.limit, offset(filters.page, filters.limit)];
+  const orderBy = filters.sortBy === 'oldest' ? 'created_at ASC' : 'created_at DESC';
+  const result = await query(
+    `SELECT l.*, cr.brand, cr.model, cr.year, ci.image_url AS primary_image
+     FROM leads l
+     LEFT JOIN cars cr ON cr.id = l.car_id
+     LEFT JOIN (
+       SELECT car_id, image_url, ROW_NUMBER() OVER (PARTITION BY car_id ORDER BY is_primary DESC, position ASC) AS rn
+       FROM car_images
+     ) ci ON ci.car_id = l.car_id AND ci.rn = 1
+     ${whereSql}
+     ORDER BY ${orderBy}
+     LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+    pageParams
+  );
+
+  return { items: result.rows.map(mapLead), ...paginationMeta(filters.page, filters.limit, total) };
 }
 
 export async function updateLead(id: string, data: any, adminId: string) {

@@ -3,7 +3,7 @@ import { requireAuth } from '../../middleware/auth.middleware';
 import { adminLoginRateLimit } from '../../middleware/rate-limit.middleware';
 import { validateBody } from '../../middleware/validate.middleware';
 import * as controller from './auth.controller';
-import { loginSchema, refreshTokenSchema } from './auth.validators';
+import { loginSchema, refreshTokenSchema, updateProfileSchema } from './auth.validators';
 
 export const authRoutes = Router();
 
@@ -11,3 +11,4 @@ authRoutes.post('/login', adminLoginRateLimit, validateBody(loginSchema), contro
 authRoutes.post('/refresh', validateBody(refreshTokenSchema), controller.refresh);
 authRoutes.post('/logout', validateBody(refreshTokenSchema), controller.logout);
 authRoutes.get('/me', requireAuth, controller.me);
+authRoutes.patch('/me', requireAuth, validateBody(updateProfileSchema), controller.updateProfile);

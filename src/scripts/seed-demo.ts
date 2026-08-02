@@ -1,7 +1,55 @@
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 import { pool } from '../config/db';
+import { env } from '../config/env';
 
 const DEMO_MARKER = '[DEMO_SEED]';
+const SEED_ASSETS_DIR = path.resolve(__dirname, '../../seed-assets/cars');
+
+// Real car photos downloaded ahead of time into seed-assets/cars/ (see docs/README.md).
+// Keyed by the car's index in the `cars` array below.
+const SEED_IMAGE_FILES: Record<number, string[]> = {
+  0: ['0-toyota-corolla-1.jpg', '0-toyota-corolla-2.jpg'],
+  1: ['1-hyundai-tucson-1.jpg', '1-hyundai-tucson-2.jpg'],
+  2: ['2-kia-sportage-1.jpg', '2-kia-sportage-2.jpg'],
+  3: ['3-mercedes-cclass-1.jpg', '3-mercedes-cclass-2.jpg'],
+  4: ['4-bmw-x5-1.jpg', '4-bmw-x5-2.jpg'],
+  5: ['5-nissan-sunny-1.jpg', '5-nissan-sunny-2.jpg'],
+  6: ['6-ford-ranger-1.jpg', '6-ford-ranger-2.jpg'],
+  7: ['7-tesla-model3-1.jpg', '7-tesla-model3-2.jpg'],
+  8: ['8-honda-civic-1.jpg', '8-honda-civic-2.jpg'],
+  9: ['9-audi-a4-1.jpg', '9-audi-a4-2.jpg'],
+  10: ['10-chevrolet-tahoe-1.jpg', '10-chevrolet-tahoe-2.jpg'],
+  11: ['11-mazda-cx5-1.jpg', '11-mazda-cx5-2.jpg']
+};
+
+function mimeTypeForExt(ext: string) {
+  if (ext === '.png') return 'image/png';
+  if (ext === '.webp') return 'image/webp';
+  return 'image/jpeg';
+}
+
+// Mirrors upload.middleware.ts's real-upload layout so seeded images are
+// indistinguishable from admin-uploaded ones (same dir/filename/URL shape).
+function copySeedImage(carId: string, sourceFilename: string) {
+  const sourcePath = path.join(SEED_ASSETS_DIR, sourceFilename);
+  const ext = path.extname(sourceFilename).toLowerCase();
+  const destFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  const destDir = path.resolve(env.UPLOAD_DIR, 'cars', carId);
+  fs.mkdirSync(destDir, { recursive: true });
+  const destPath = path.join(destDir, destFilename);
+  fs.copyFileSync(sourcePath, destPath);
+  const storageKey = `cars/${carId}/${destFilename}`;
+
+  return {
+    imageUrl: `${env.PUBLIC_BASE_URL}/uploads/${storageKey}`,
+    storageKey,
+    localPath: destPath,
+    mimeType: mimeTypeForExt(ext),
+    sizeBytes: fs.statSync(destPath).size
+  };
+}
 
 type Money = { amount: number; currency: 'USD' | 'SYP' };
 type CarSeed = {
@@ -24,7 +72,6 @@ type CarSeed = {
   drivetrain: string;
   horsepower: number;
   description: string;
-  images: string[];
 };
 
 type LeadSeed = {
@@ -62,7 +109,6 @@ const cars: CarSeed[] = [
     drivetrain: 'FWD',
     horsepower: 139,
     description: 'Clean sedan with full service history.',
-    images: ['toyota-corolla-white-front', 'toyota-corolla-white-interior']
   },
   {
     brand: 'Hyundai',
@@ -84,7 +130,6 @@ const cars: CarSeed[] = [
     drivetrain: 'AWD',
     horsepower: 161,
     description: 'Family SUV available for sale or monthly rental.',
-    images: ['hyundai-tucson-silver-front', 'hyundai-tucson-silver-side']
   },
   {
     brand: 'Kia',
@@ -105,7 +150,6 @@ const cars: CarSeed[] = [
     drivetrain: 'AWD',
     horsepower: 156,
     description: 'New rental SUV with premium trim.',
-    images: ['kia-sportage-gray-front', 'kia-sportage-gray-dashboard']
   },
   {
     brand: 'Mercedes-Benz',
@@ -125,7 +169,6 @@ const cars: CarSeed[] = [
     drivetrain: 'RWD',
     horsepower: 204,
     description: 'Luxury sedan with leather interior and panoramic roof.',
-    images: ['mercedes-c200-black-front', 'mercedes-c200-black-interior']
   },
   {
     brand: 'BMW',
@@ -147,7 +190,6 @@ const cars: CarSeed[] = [
     drivetrain: 'AWD',
     horsepower: 335,
     description: 'Sport luxury SUV with strong performance.',
-    images: ['bmw-x5-blue-front', 'bmw-x5-blue-rear']
   },
   {
     brand: 'Nissan',
@@ -167,7 +209,6 @@ const cars: CarSeed[] = [
     drivetrain: 'FWD',
     horsepower: 118,
     description: 'Economical city car with low ownership cost.',
-    images: ['nissan-sunny-red-front', 'nissan-sunny-red-side']
   },
   {
     brand: 'Ford',
@@ -187,7 +228,6 @@ const cars: CarSeed[] = [
     drivetrain: '4WD',
     horsepower: 160,
     description: 'Strong pickup ready for business or outdoor use.',
-    images: ['ford-ranger-orange-front', 'ford-ranger-orange-bed']
   },
   {
     brand: 'Tesla',
@@ -208,7 +248,6 @@ const cars: CarSeed[] = [
     drivetrain: 'RWD',
     horsepower: 283,
     description: 'Electric sedan with long range and clean cabin.',
-    images: ['tesla-model-3-white-front', 'tesla-model-3-white-interior']
   },
   {
     brand: 'Honda',
@@ -228,7 +267,6 @@ const cars: CarSeed[] = [
     drivetrain: 'FWD',
     horsepower: 174,
     description: 'Reliable compact sedan with sporty trim.',
-    images: ['honda-civic-black-front', 'honda-civic-black-side']
   },
   {
     brand: 'Audi',
@@ -248,7 +286,6 @@ const cars: CarSeed[] = [
     drivetrain: 'AWD',
     horsepower: 248,
     description: 'Premium hybrid sedan with advanced tech package.',
-    images: ['audi-a4-gray-front', 'audi-a4-gray-interior']
   },
   {
     brand: 'Chevrolet',
@@ -270,7 +307,6 @@ const cars: CarSeed[] = [
     drivetrain: '4WD',
     horsepower: 355,
     description: 'Large SUV for family trips and executive rentals.',
-    images: ['chevrolet-tahoe-white-front', 'chevrolet-tahoe-white-cabin']
   },
   {
     brand: 'Mazda',
@@ -290,7 +326,6 @@ const cars: CarSeed[] = [
     drivetrain: 'AWD',
     horsepower: 187,
     description: 'Inactive demo listing for admin status filtering.',
-    images: ['mazda-cx5-blue-front', 'mazda-cx5-blue-side']
   }
 ];
 
@@ -513,27 +548,26 @@ async function main() {
     const ownerId = ownerResult.rows[0].id;
     const staffId = staffResult.rows[0].id;
 
-    await client.query(
-      `DELETE FROM deals
-       WHERE lead_id IN (
-         SELECT id FROM leads WHERE message LIKE $1 OR admin_notes LIKE $1
-       )
-       OR notes LIKE $1`,
-      [`%${DEMO_MARKER}%`]
-    );
-    await client.query(`DELETE FROM leads WHERE message LIKE $1 OR admin_notes LIKE $1`, [`%${DEMO_MARKER}%`]);
-    await client.query(
-      `DELETE FROM car_images
-       WHERE car_id IN (
-         SELECT id FROM cars WHERE description LIKE $1
-       )`,
-      [`%${DEMO_MARKER}%`]
-    );
-    await client.query(`DELETE FROM cars WHERE description LIKE $1`, [`%${DEMO_MARKER}%`]);
+    // Clean up by car_id membership (not just message markers) so a re-seed doesn't
+    // fail with a FK violation if a stray real lead/deal was manually created
+    // against a demo car in between seed runs.
+    const staleCars = await client.query<{ id: string }>(`SELECT id FROM cars WHERE description LIKE $1`, [
+      `%${DEMO_MARKER}%`
+    ]);
+    const staleCarIds = staleCars.rows.map((row) => row.id);
+
+    for (const staleCarId of staleCarIds) {
+      fs.rmSync(path.resolve(env.UPLOAD_DIR, 'cars', staleCarId), { recursive: true, force: true });
+    }
+
+    await client.query(`DELETE FROM deals WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
+    await client.query(`DELETE FROM leads WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
+    await client.query(`DELETE FROM car_images WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
+    await client.query(`DELETE FROM cars WHERE id = ANY($1::uuid[])`, [staleCarIds]);
 
     const carIds: string[] = [];
 
-    for (const car of cars) {
+    for (const [carIndex, car] of cars.entries()) {
       const result = await client.query<{ id: string }>(
         `INSERT INTO cars (
           brand, model, year, listing_type, condition, status,
@@ -576,21 +610,19 @@ async function main() {
       const carId = result.rows[0].id;
       carIds.push(carId);
 
-      for (const [index, imageName] of car.images.entries()) {
+      const imageFiles = SEED_IMAGE_FILES[carIndex] ?? [];
+      for (const [index, filename] of imageFiles.entries()) {
+        const sourcePath = path.join(SEED_ASSETS_DIR, filename);
+        if (!fs.existsSync(sourcePath)) {
+          console.warn(`Seed image missing on disk, skipping: ${filename}`);
+          continue;
+        }
+        const { imageUrl, storageKey, localPath, mimeType, sizeBytes } = copySeedImage(carId, filename);
         await client.query(
           `INSERT INTO car_images (
             car_id, image_url, storage_key, local_path, mime_type, size_bytes, is_primary, position
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [
-            carId,
-            `https://placehold.co/1200x800/png?text=${encodeURIComponent(`${car.brand} ${car.model}`)}`,
-            `demo/${imageName}.png`,
-            null,
-            'image/png',
-            0,
-            index === 0,
-            index
-          ]
+          [carId, imageUrl, storageKey, localPath, mimeType, sizeBytes, index === 0, index]
         );
       }
     }
@@ -677,6 +709,18 @@ async function main() {
           ownerId
         ]
       );
+
+      // Mirror deals.service.ts's createDeal side effects so the seeded example
+      // deals leave the car/lead in the same consistent state a real deal would.
+      await client.query(`UPDATE leads SET status = 'CLOSED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+        ownerId,
+        leadIds[deal.leadIndex]
+      ]);
+      await client.query(`UPDATE cars SET status = $1, updated_by = $2, updated_at = NOW() WHERE id = $3`, [
+        deal.type === 'SALE' ? 'SOLD' : 'RENTED',
+        ownerId,
+        carIds[deal.carIndex]
+      ]);
     }
 
     await client.query('COMMIT');
@@ -684,7 +728,8 @@ async function main() {
     console.log('Seeded demo data successfully.');
     console.log('Admin login: admin@drivex.com / admin123');
     console.log('Staff login: staff@drivex.com / staff1234');
-    console.log(`Cars: ${cars.length}, images: ${cars.length * 2}, leads: ${leads.length}, deals: ${deals.length}`);
+    const totalImages = Object.values(SEED_IMAGE_FILES).reduce((sum, files) => sum + files.length, 0);
+    console.log(`Cars: ${cars.length}, images: ${totalImages}, leads: ${leads.length}, deals: ${deals.length}`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

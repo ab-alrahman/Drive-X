@@ -1,8 +1,27 @@
 # Drive X API Alignment Report
 
-Date: 2026-05-25
+Date: 2026-05-25 (see 2026-07-30 update below)
 
 Scope: documentation-only alignment between backend docs and dashboard docs. No application code changes are included.
+
+> **Update — 2026-07-30:** This report predates the customer-account feature set and is out of date in several places below. It is kept for history; treat the actual route files under `src/modules/*/\*.routes.ts` as the source of truth going forward, not this document.
+>
+> - **Customer auth, profile, and favorites are implemented**, contrary to the "Refresh tokens are handled only through admin auth endpoints" note in section 2 and the endpoint list in section 3. The following exist and are now documented in `openapi.yaml`/`openapi.backend.yaml`:
+>   ```text
+>   POST   /v1/public/auth/register
+>   POST   /v1/public/auth/login
+>   POST   /v1/public/auth/refresh
+>   POST   /v1/public/auth/logout
+>   GET    /v1/public/auth/me
+>   PATCH  /v1/public/me
+>   GET    /v1/public/me/leads
+>   GET    /v1/public/me/favorites
+>   POST   /v1/public/me/favorites/{carId}
+>   DELETE /v1/public/me/favorites/{carId}
+>   ```
+> - Section 4.3 ("Deal Detail and Management") lists `GET/PATCH/DELETE /v1/admin/deals/{dealId}` as future work — **these are already implemented** in `deals.routes.ts` and are now documented too. `updateDeal`/`deleteDeal` also now reconcile the linked car/lead status (see `deals.service.ts`), and `createDeal` runs inside a DB transaction.
+> - Section 6, item 2 ("Exact JWT access/refresh TTL values"): resolved — access token TTL is 15 minutes, refresh token TTL is 7 days.
+> - `openapi.backend.yaml` and `openapi.yaml` are byte-identical (verified 2026-07-30); only `openapi.yaml` is actually served by `src/docs/swagger.ts`. Keep them in sync manually until one is retired, or wire `swagger.ts` to `openapi.backend.yaml` instead and delete the duplicate.
 
 ## 1. Docs Structure Alignment
 

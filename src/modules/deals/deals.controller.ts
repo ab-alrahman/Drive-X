@@ -31,7 +31,7 @@ export const getDeal: RequestHandler = async (req, res, next) => {
 
 export const updateDeal: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await dealsService.updateDeal(paramValue(req.params.dealId), req.body));
+    res.json(await dealsService.updateDeal(paramValue(req.params.dealId), req.body, req.user!.id));
   } catch (err) {
     next(err);
   }
@@ -39,7 +39,7 @@ export const updateDeal: RequestHandler = async (req, res, next) => {
 
 export const deleteDeal: RequestHandler = async (req, res, next) => {
   try {
-    await dealsService.deleteDeal(paramValue(req.params.dealId));
+    await dealsService.deleteDeal(paramValue(req.params.dealId), req.user!.id);
     res.status(204).send();
   } catch (err) {
     next(err);

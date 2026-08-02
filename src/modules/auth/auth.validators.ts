@@ -9,3 +9,7 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(20)
 });
 
+export const updateProfileSchema = z.object({
+  fullName: z.string().min(2).max(120)
+});
+

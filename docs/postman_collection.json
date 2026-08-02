@@ -224,6 +224,65 @@
       ]
     },
     {
+      "name": "Customer Dashboard",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{customerAccessToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "Get My Leads",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/public/me/leads?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "public", "me", "leads"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Leads (Filtered by Status)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/public/me/leads?status=NEW&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "public", "me", "leads"],
+              "query": [
+                { "key": "status", "value": "NEW" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Updated Name\",\n  \"phone\": \"+963911111111\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/public/me"
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/public/auth/me"
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin Auth",
       "item": [
         {

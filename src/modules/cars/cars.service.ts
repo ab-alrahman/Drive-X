@@ -103,11 +103,11 @@ function buildFilters(filters: ListCarsQuery, publicOnly: boolean) {
   }
   if (filters.priceMin) {
     params.push(filters.priceMin);
-    where.push(`COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) >= $${params.length}`);
+    where.push(`COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) >= $${params.length}`);
   }
   if (filters.priceMax) {
     params.push(filters.priceMax);
-    where.push(`COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) <= $${params.length}`);
+    where.push(`COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) <= $${params.length}`);
   }
 
   return { where: where.join(' AND '), params };
@@ -116,11 +116,11 @@ function buildFilters(filters: ListCarsQuery, publicOnly: boolean) {
 function sortClause(sortBy: string) {
   const clauses: Record<string, string> = {
     newest: 'c.created_at DESC',
-    priceAsc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) ASC NULLS LAST',
-    priceDesc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) DESC NULLS LAST',
+    priceAsc: 'COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) ASC NULLS LAST',
+    priceDesc: 'COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) DESC NULLS LAST',
     yearDesc: 'c.year DESC',
-    price_asc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) ASC NULLS LAST',
-    price_desc: 'COALESCE(c.sale_price_amount, c.daily_rent_price_amount, c.monthly_rent_price_amount) DESC NULLS LAST',
+    price_asc: 'COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) ASC NULLS LAST',
+    price_desc: 'COALESCE(c.sale_price_amount, c.monthly_rent_price_amount, c.daily_rent_price_amount) DESC NULLS LAST',
     year_desc: 'c.year DESC',
     mileage_asc: 'c.mileage_km ASC NULLS LAST'
   };

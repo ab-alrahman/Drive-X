@@ -14,6 +14,8 @@ servers:
 tags:
   - name: Public
   - name: Leads
+  - name: CustomerAuth
+  - name: Favorites
   - name: AdminAuth
   - name: AdminCars
   - name: AdminLeads
@@ -141,6 +143,230 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           description: Too many requests
+
+  /v1/public/auth/register:
+    post:
+      tags: [CustomerAuth]
+      security: []
+      summary: Register a new customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerAuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already registered
+        '429':
+          description: Too many requests
+
+  /v1/public/auth/login:
+    post:
+      tags: [CustomerAuth]
+      security: []
+      summary: Customer login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerAuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Too many requests
+
+  /v1/public/auth/refresh:
+    post:
+      tags: [CustomerAuth]
+      security: []
+      summary: Refresh customer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerAuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Too many requests
+
+  /v1/public/auth/logout:
+    post:
+      tags: [CustomerAuth]
+      summary: Revoke current customer refresh token/session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/public/auth/me:
+    get:
+      tags: [CustomerAuth]
+      summary: Get current customer profile
+      responses:
+        '200':
+          description: Current customer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/public/me:
+    patch:
+      tags: [CustomerAuth]
+      summary: Update the logged-in customer's name/phone (email is immutable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/public/me/leads:
+    get:
+      tags: [CustomerAuth]
+      summary: List the logged-in customer's own leads/inquiries
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/LeadStatus'
+        - in: query
+          name: intent
+          schema:
+            $ref: '#/components/schemas/LeadIntent'
+      responses:
+        '200':
+          description: Customer's own lead list, matched by account email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMyLeadsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/public/me/favorites:
+    get:
+      tags: [Favorites]
+      summary: List the logged-in customer's favorite cars
+      responses:
+        '200':
+          description: Favorite cars
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoritesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/public/me/favorites/{carId}:
+    post:
+      tags: [Favorites]
+      summary: Add a car to the logged-in customer's favorites
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Favorite added
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [carId, favorited]
+                properties:
+                  carId: { type: string, format: uuid }
+                  favorited: { type: boolean, example: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Favorites]
+      summary: Remove a car from the logged-in customer's favorites
+      parameters:
+        - in: path
+          name: carId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Favorite removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [carId, favorited]
+                properties:
+                  carId: { type: string, format: uuid }
+                  favorited: { type: boolean, example: false }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Favorite not found
 
   /v1/admin/auth/login:
     post:
@@ -498,6 +724,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DealResponse'
+
+  /v1/admin/deals/{dealId}:
+    get:
+      tags: [AdminDeals]
+      summary: Get deal details
+      parameters:
+        - in: path
+          name: dealId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deal details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [AdminDeals]
+      summary: Update a deal. Reassigning carId/leadId or changing type automatically reconciles the old and new car/lead statuses.
+      parameters:
+        - in: path
+          name: dealId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDealRequest'
+      responses:
+        '200':
+          description: Deal updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [AdminDeals]
+      summary: Delete a deal. The linked car reverts to AVAILABLE and the linked lead reverts to APPROVED.
+      parameters:
+        - in: path
+          name: dealId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deal deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/admin/dashboard/summary:
     get:
@@ -992,6 +1279,31 @@ components:
         notes:
           type: string
 
+    UpdateDealRequest:
+      type: object
+      description: All fields optional; only provided fields are changed.
+      properties:
+        leadId:
+          type: string
+          format: uuid
+        carId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [SALE, RENT]
+        finalPrice:
+          $ref: '#/components/schemas/Money'
+        commissionType:
+          type: string
+          enum: [PERCENTAGE, FIXED]
+        commissionValue:
+          type: number
+          format: double
+          minimum: 0
+        notes:
+          type: string
+
     DashboardSummaryResponse:
       type: object
       required:
@@ -1063,6 +1375,129 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DealResponse'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+
+    CustomerRegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 30
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    CustomerLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 30
+
+    CustomerProfile:
+      type: object
+      required: [id, email, fullName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        phone:
+          type: string
+
+    CustomerAuthTokenResponse:
+      type: object
+      required: [customer, accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        customer:
+          $ref: '#/components/schemas/CustomerProfile'
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+
+    FavoritesListResponse:
+      type: object
+      required: [items, ids]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Car'
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    MyLeadResponse:
+      allOf:
+        - $ref: '#/components/schemas/LeadResponse'
+        - type: object
+          description: Only present when the referenced car still exists.
+          properties:
+            car:
+              type: object
+              properties:
+                brand: { type: string }
+                model: { type: string }
+                year: { type: integer }
+                imageUrl: { type: string, nullable: true }
+
+    PaginatedMyLeadsResponse:
+      type: object
+      required: [items, page, limit, total, totalPages, hasNext]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyLeadResponse'
         page:
           type: integer
         limit:

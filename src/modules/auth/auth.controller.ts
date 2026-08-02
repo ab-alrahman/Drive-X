@@ -28,7 +28,21 @@ export const logout: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const me: RequestHandler = (req, res) => {
-  res.json(req.user);
+export const me: RequestHandler = async (req, res, next) => {
+  try {
+    const profile = await authService.getProfile(req.user!.id);
+    res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateProfile: RequestHandler = async (req, res, next) => {
+  try {
+    const profile = await authService.updateProfile(req.user!.id, req.body.fullName);
+    res.json(profile);
+  } catch (err) {
+    next(err);
+  }
 };
 

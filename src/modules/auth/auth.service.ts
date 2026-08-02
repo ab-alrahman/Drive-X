@@ -128,3 +128,32 @@ export async function logout(refreshToken: string) {
     hashToken(refreshToken)
   ]);
 }
+
+export async function getProfile(id: string) {
+  const result = await query<AdminUserRow>(
+    `SELECT id, email, full_name, role FROM admin_users WHERE id = $1`,
+    [id]
+  );
+
+  if (!result.rows[0]) {
+    throw unauthorized('Admin account not found');
+  }
+
+  const admin = result.rows[0];
+  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role };
+}
+
+export async function updateProfile(id: string, fullName: string) {
+  const result = await query<AdminUserRow>(
+    `UPDATE admin_users SET full_name = $1, updated_at = NOW() WHERE id = $2
+     RETURNING id, email, full_name, role`,
+    [fullName, id]
+  );
+
+  if (!result.rows[0]) {
+    throw unauthorized('Admin account not found');
+  }
+
+  const admin = result.rows[0];
+  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role };
+}

@@ -1,6 +1,11 @@
-import { query } from '../../config/db';
+import { PoolClient } from 'pg';
+import { query, withTransaction } from '../../config/db';
 import { notFound } from '../../shared/errors';
 import { offset, paginationMeta } from '../../shared/pagination';
+
+function carStatusForDealType(type: string) {
+  return type === 'SALE' ? 'SOLD' : 'RENTED';
+}
 
 function commissionAmount(finalPrice: number, commissionType: string, commissionValue: number) {
   if (commissionType === 'PERCENTAGE') {
@@ -46,87 +51,145 @@ export async function getDeal(id: string) {
 
 export async function createDeal(data: any, adminId: string) {
   const amount = commissionAmount(data.finalPrice.amount, data.commissionType, data.commissionValue);
-  const result = await query(
-    `INSERT INTO deals (
-      lead_id, car_id, type, final_price_amount, final_price_currency,
-      commission_type, commission_value, commission_amount, commission_currency, notes, created_by
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-    RETURNING *`,
-    [
-      data.leadId,
-      data.carId,
-      data.type,
-      data.finalPrice.amount,
-      data.finalPrice.currency,
-      data.commissionType,
-      data.commissionValue,
-      amount,
-      data.finalPrice.currency,
-      data.notes,
-      adminId
-    ]
-  );
 
-  await query(`UPDATE leads SET status = 'CLOSED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
-    adminId,
-    data.leadId
-  ]);
+  return withTransaction(async (client) => {
+    const result = await client.query(
+      `INSERT INTO deals (
+        lead_id, car_id, type, final_price_amount, final_price_currency,
+        commission_type, commission_value, commission_amount, commission_currency, notes, created_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      RETURNING *`,
+      [
+        data.leadId,
+        data.carId,
+        data.type,
+        data.finalPrice.amount,
+        data.finalPrice.currency,
+        data.commissionType,
+        data.commissionValue,
+        amount,
+        data.finalPrice.currency,
+        data.notes,
+        adminId
+      ]
+    );
 
-  await query(`UPDATE cars SET status = $1, updated_by = $2, updated_at = NOW() WHERE id = $3`, [
-    data.type === 'SALE' ? 'SOLD' : 'RENTED',
-    adminId,
-    data.carId
-  ]);
+    await client.query(`UPDATE leads SET status = 'CLOSED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+      adminId,
+      data.leadId
+    ]);
 
-  return mapDeal(result.rows[0]);
+    await client.query(`UPDATE cars SET status = $1, updated_by = $2, updated_at = NOW() WHERE id = $3`, [
+      carStatusForDealType(data.type),
+      adminId,
+      data.carId
+    ]);
+
+    return mapDeal(result.rows[0]);
+  });
 }
 
-export async function updateDeal(id: string, data: any) {
-  const current = await getDeal(id);
-  const finalPrice = data.finalPrice ?? current.finalPrice;
-  const commissionType = data.commissionType ?? current.commissionType;
-  const commissionValue = data.commissionValue ?? current.commissionValue;
-  const amount = commissionAmount(finalPrice.amount, commissionType, commissionValue);
+export async function updateDeal(id: string, data: any, adminId: string) {
+  return withTransaction(async (client: PoolClient) => {
+    const currentResult = await client.query(`SELECT * FROM deals WHERE id = $1 FOR UPDATE`, [id]);
+    const currentRow = currentResult.rows[0];
+    if (!currentRow) {
+      throw notFound('Deal not found');
+    }
+    const current = mapDeal(currentRow);
 
-  const result = await query(
-    `UPDATE deals SET
-      lead_id = $1,
-      car_id = $2,
-      type = $3,
-      final_price_amount = $4,
-      final_price_currency = $5,
-      commission_type = $6,
-      commission_value = $7,
-      commission_amount = $8,
-      commission_currency = $9,
-      notes = $10
-     WHERE id = $11
-     RETURNING *`,
-    [
-      data.leadId ?? current.leadId,
-      data.carId ?? current.carId,
-      data.type ?? current.type,
-      finalPrice.amount,
-      finalPrice.currency,
-      commissionType,
-      commissionValue,
-      amount,
-      finalPrice.currency,
-      data.notes ?? current.notes,
-      id
-    ]
-  );
+    const leadId = data.leadId ?? current.leadId;
+    const carId = data.carId ?? current.carId;
+    const type = data.type ?? current.type;
+    const finalPrice = data.finalPrice ?? current.finalPrice;
+    const commissionType = data.commissionType ?? current.commissionType;
+    const commissionValue = data.commissionValue ?? current.commissionValue;
+    const amount = commissionAmount(finalPrice.amount, commissionType, commissionValue);
 
-  if (!result.rows[0]) {
-    throw notFound('Deal not found');
-  }
+    const result = await client.query(
+      `UPDATE deals SET
+        lead_id = $1,
+        car_id = $2,
+        type = $3,
+        final_price_amount = $4,
+        final_price_currency = $5,
+        commission_type = $6,
+        commission_value = $7,
+        commission_amount = $8,
+        commission_currency = $9,
+        notes = $10
+       WHERE id = $11
+       RETURNING *`,
+      [
+        leadId,
+        carId,
+        type,
+        finalPrice.amount,
+        finalPrice.currency,
+        commissionType,
+        commissionValue,
+        amount,
+        finalPrice.currency,
+        data.notes ?? current.notes,
+        id
+      ]
+    );
 
-  return mapDeal(result.rows[0]);
+    // Reconcile the car's status whenever the linked car or the deal type changes.
+    if (carId !== current.carId) {
+      await client.query(`UPDATE cars SET status = 'AVAILABLE', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+        adminId,
+        current.carId
+      ]);
+      await client.query(`UPDATE cars SET status = $1, updated_by = $2, updated_at = NOW() WHERE id = $3`, [
+        carStatusForDealType(type),
+        adminId,
+        carId
+      ]);
+    } else if (type !== current.type) {
+      await client.query(`UPDATE cars SET status = $1, updated_by = $2, updated_at = NOW() WHERE id = $3`, [
+        carStatusForDealType(type),
+        adminId,
+        carId
+      ]);
+    }
+
+    // Reconcile lead status whenever the deal is reassigned to a different lead.
+    if (leadId !== current.leadId) {
+      await client.query(`UPDATE leads SET status = 'APPROVED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+        adminId,
+        current.leadId
+      ]);
+      await client.query(`UPDATE leads SET status = 'CLOSED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+        adminId,
+        leadId
+      ]);
+    }
+
+    return mapDeal(result.rows[0]);
+  });
 }
 
-export async function deleteDeal(id: string) {
-  const result = await query(`DELETE FROM deals WHERE id = $1`, [id]);
-  if (!result.rowCount) {
-    throw notFound('Deal not found');
-  }
+export async function deleteDeal(id: string, adminId: string) {
+  return withTransaction(async (client: PoolClient) => {
+    const currentResult = await client.query(`SELECT * FROM deals WHERE id = $1 FOR UPDATE`, [id]);
+    const currentRow = currentResult.rows[0];
+    if (!currentRow) {
+      throw notFound('Deal not found');
+    }
+    const current = mapDeal(currentRow);
+
+    await client.query(`DELETE FROM deals WHERE id = $1`, [id]);
+
+    // Deleting a deal undoes its side effects: the car goes back on the market
+    // and the lead returns to APPROVED so the deal can be redone if needed.
+    await client.query(`UPDATE cars SET status = 'AVAILABLE', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+      adminId,
+      current.carId
+    ]);
+    await client.query(`UPDATE leads SET status = 'APPROVED', updated_by = $1, updated_at = NOW() WHERE id = $2`, [
+      adminId,
+      current.leadId
+    ]);
+  });
 }

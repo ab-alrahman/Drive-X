@@ -13,6 +13,14 @@ export const createLead: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getMyLeads: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await leadsService.getMyLeads(req.customer!.email, req.query));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const listLeads: RequestHandler = async (req, res, next) => {
   try {
     res.json(await leadsService.listLeads(req.query));

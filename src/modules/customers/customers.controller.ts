@@ -41,3 +41,11 @@ export const me: RequestHandler = async (req, res, next) => {
     next(err);
   }
 };
+
+export const updateProfile: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await customerService.updateProfile(req.customer!.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+};

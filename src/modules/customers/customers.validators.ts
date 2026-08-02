@@ -15,3 +15,8 @@ export const customerLoginSchema = z.object({
 export const customerRefreshSchema = z.object({
   refreshToken: z.string().min(1)
 });
+
+export const updateProfileSchema = z.object({
+  fullName: z.string().min(2).max(120).optional(),
+  phone: z.string().min(6).max(30).optional()
+});

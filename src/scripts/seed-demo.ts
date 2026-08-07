@@ -87,6 +87,13 @@ type LeadSeed = {
   adminNotes?: string;
 };
 
+type CustomerSeed = {
+  fullName: string;
+  email: string;
+  phone: string;
+  favoriteCarIndexes: number[];
+};
+
 const cars: CarSeed[] = [
   {
     brand: 'Toyota',
@@ -326,6 +333,369 @@ const cars: CarSeed[] = [
   }
 ];
 
+const extraCars: CarSeed[] = [
+  {
+    brand: 'Toyota',
+    model: 'RAV4',
+    year: 2023,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 31800, currency: 'USD' },
+    dailyRentPrice: { amount: 85, currency: 'USD' },
+    monthlyRentPrice: { amount: 1900, currency: 'USD' },
+    mileageKm: 22000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'HYBRID',
+    color: 'Gray',
+    city: 'Damascus',
+    engine: '2.5L Hybrid',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 219,
+    description: 'Hybrid SUV with active safety package.'
+  },
+  {
+    brand: 'Hyundai',
+    model: 'Elantra',
+    year: 2022,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 19800, currency: 'USD' },
+    mileageKm: 27000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Blue',
+    city: 'Homs',
+    engine: '2.0L',
+    seats: 5,
+    drivetrain: 'FWD',
+    horsepower: 147,
+    description: 'Comfortable sedan with clean service records.'
+  },
+  {
+    brand: 'Kia',
+    model: 'Sorento',
+    year: 2021,
+    listingType: 'RENT',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    dailyRentPrice: { amount: 95, currency: 'USD' },
+    monthlyRentPrice: { amount: 2200, currency: 'USD' },
+    mileageKm: 41000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Black',
+    city: 'Aleppo',
+    engine: '2.5L',
+    seats: 7,
+    drivetrain: 'AWD',
+    horsepower: 191,
+    description: 'Seven-seat rental SUV for family travel.'
+  },
+  {
+    brand: 'Mercedes-Benz',
+    model: 'GLC 300',
+    year: 2022,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'RESERVED',
+    salePrice: { amount: 54500, currency: 'USD' },
+    mileageKm: 29000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'White',
+    city: 'Damascus',
+    engine: '2.0L Turbo',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 255,
+    description: 'Premium compact SUV with AMG appearance package.'
+  },
+  {
+    brand: 'BMW',
+    model: '320i',
+    year: 2020,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 33500, currency: 'USD' },
+    mileageKm: 54000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Silver',
+    city: 'Latakia',
+    engine: '2.0L Turbo',
+    seats: 5,
+    drivetrain: 'RWD',
+    horsepower: 184,
+    description: 'Sport sedan with efficient turbo engine.'
+  },
+  {
+    brand: 'Nissan',
+    model: 'X-Trail',
+    year: 2020,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 23800, currency: 'USD' },
+    dailyRentPrice: { amount: 70, currency: 'USD' },
+    monthlyRentPrice: { amount: 1550, currency: 'USD' },
+    mileageKm: 62000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'White',
+    city: 'Tartus',
+    engine: '2.5L',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 170,
+    description: 'Practical crossover ready for sale or rent.'
+  },
+  {
+    brand: 'Ford',
+    model: 'Explorer',
+    year: 2021,
+    listingType: 'RENT',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    dailyRentPrice: { amount: 115, currency: 'USD' },
+    monthlyRentPrice: { amount: 2850, currency: 'USD' },
+    mileageKm: 50000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Dark Gray',
+    city: 'Damascus',
+    engine: '2.3L Turbo',
+    seats: 7,
+    drivetrain: 'AWD',
+    horsepower: 300,
+    description: 'Large rental SUV with spacious interior.'
+  },
+  {
+    brand: 'Tesla',
+    model: 'Model Y',
+    year: 2023,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 46500, currency: 'USD' },
+    dailyRentPrice: { amount: 130, currency: 'USD' },
+    monthlyRentPrice: { amount: 3100, currency: 'USD' },
+    mileageKm: 18000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'ELECTRIC',
+    color: 'Red',
+    city: 'Damascus',
+    engine: 'Electric',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 384,
+    description: 'Electric crossover with dual motor performance.'
+  },
+  {
+    brand: 'Honda',
+    model: 'CR-V',
+    year: 2022,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 29200, currency: 'USD' },
+    mileageKm: 36000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'HYBRID',
+    color: 'Pearl White',
+    city: 'Hama',
+    engine: '2.0L Hybrid',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 212,
+    description: 'Efficient SUV with roomy cabin.'
+  },
+  {
+    brand: 'Audi',
+    model: 'Q5',
+    year: 2021,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'RESERVED',
+    salePrice: { amount: 44800, currency: 'USD' },
+    dailyRentPrice: { amount: 120, currency: 'USD' },
+    monthlyRentPrice: { amount: 2950, currency: 'USD' },
+    mileageKm: 33000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Black',
+    city: 'Damascus',
+    engine: '2.0L Turbo',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 261,
+    description: 'Premium SUV with quattro all-wheel drive.'
+  },
+  {
+    brand: 'Chevrolet',
+    model: 'Malibu',
+    year: 2019,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 18200, currency: 'USD' },
+    mileageKm: 74000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Silver',
+    city: 'Aleppo',
+    engine: '1.5L Turbo',
+    seats: 5,
+    drivetrain: 'FWD',
+    horsepower: 160,
+    description: 'Midsize sedan with smooth ride quality.'
+  },
+  {
+    brand: 'Mazda',
+    model: '3',
+    year: 2022,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 21400, currency: 'USD' },
+    mileageKm: 26000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Red',
+    city: 'Tartus',
+    engine: '2.0L',
+    seats: 5,
+    drivetrain: 'FWD',
+    horsepower: 155,
+    description: 'Compact sedan with premium interior feel.'
+  },
+  {
+    brand: 'Toyota',
+    model: 'Land Cruiser Prado',
+    year: 2018,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 49800, currency: 'USD' },
+    mileageKm: 88000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Black',
+    city: 'Damascus',
+    engine: '4.0L V6',
+    seats: 7,
+    drivetrain: '4WD',
+    horsepower: 271,
+    description: 'Durable SUV with strong off-road reputation.'
+  },
+  {
+    brand: 'Hyundai',
+    model: 'Santa Fe',
+    year: 2020,
+    listingType: 'RENT',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    dailyRentPrice: { amount: 82, currency: 'USD' },
+    monthlyRentPrice: { amount: 1750, currency: 'USD' },
+    mileageKm: 57000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'DIESEL',
+    color: 'Brown',
+    city: 'Latakia',
+    engine: '2.2L Diesel',
+    seats: 7,
+    drivetrain: 'AWD',
+    horsepower: 200,
+    description: 'Diesel family SUV for longer rentals.'
+  },
+  {
+    brand: 'Kia',
+    model: 'Cerato',
+    year: 2021,
+    listingType: 'SALE',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 17600, currency: 'USD' },
+    mileageKm: 49000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'White',
+    city: 'Homs',
+    engine: '1.6L',
+    seats: 5,
+    drivetrain: 'FWD',
+    horsepower: 130,
+    description: 'Low-cost sedan with easy maintenance.'
+  },
+  {
+    brand: 'Mercedes-Benz',
+    model: 'E300',
+    year: 2019,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    salePrice: { amount: 51500, currency: 'USD' },
+    dailyRentPrice: { amount: 135, currency: 'USD' },
+    monthlyRentPrice: { amount: 3300, currency: 'USD' },
+    mileageKm: 65000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'Dark Blue',
+    city: 'Damascus',
+    engine: '2.0L Turbo',
+    seats: 5,
+    drivetrain: 'RWD',
+    horsepower: 241,
+    description: 'Executive sedan for premium rental or purchase.'
+  },
+  {
+    brand: 'BMW',
+    model: 'X3',
+    year: 2022,
+    listingType: 'RENT',
+    condition: 'USED',
+    status: 'AVAILABLE',
+    dailyRentPrice: { amount: 118, currency: 'USD' },
+    monthlyRentPrice: { amount: 2850, currency: 'USD' },
+    mileageKm: 30000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'White',
+    city: 'Damascus',
+    engine: '2.0L Turbo',
+    seats: 5,
+    drivetrain: 'AWD',
+    horsepower: 248,
+    description: 'Compact luxury SUV with athletic handling.'
+  },
+  {
+    brand: 'Nissan',
+    model: 'Patrol',
+    year: 2020,
+    listingType: 'BOTH',
+    condition: 'USED',
+    status: 'INACTIVE',
+    salePrice: { amount: 57500, currency: 'USD' },
+    dailyRentPrice: { amount: 150, currency: 'USD' },
+    monthlyRentPrice: { amount: 3800, currency: 'USD' },
+    mileageKm: 72000,
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    color: 'White',
+    city: 'Damascus',
+    engine: '5.6L V8',
+    seats: 7,
+    drivetrain: '4WD',
+    horsepower: 400,
+    description: 'Inactive large SUV listing for admin testing.'
+  }
+];
+
+const allCars = [...cars, ...extraCars];
+
 const leads: LeadSeed[] = [
   {
     carIndex: 0,
@@ -506,6 +876,57 @@ const leads: LeadSeed[] = [
   }
 ];
 
+const customers: CustomerSeed[] = [
+  {
+    fullName: 'Omar Haddad',
+    email: 'omar.haddad@example.com',
+    phone: '+963 944 100 101',
+    favoriteCarIndexes: [0, 7, 12, 19]
+  },
+  {
+    fullName: 'Lina Mansour',
+    email: 'lina.mansour@example.com',
+    phone: '+963 955 200 202',
+    favoriteCarIndexes: [1, 2, 14, 25]
+  },
+  {
+    fullName: 'Karim Darwish',
+    email: 'karim.darwish@example.com',
+    phone: '+963 933 300 303',
+    favoriteCarIndexes: [2, 6, 18]
+  },
+  {
+    fullName: 'Maya Nasser',
+    email: 'maya.nasser@example.com',
+    phone: '+963 966 500 505',
+    favoriteCarIndexes: [4, 9, 21]
+  },
+  {
+    fullName: 'Hala Kassem',
+    email: 'hala.kassem@example.com',
+    phone: '+963 988 900 909',
+    favoriteCarIndexes: [8, 13, 20]
+  },
+  {
+    fullName: 'Yazan Ali',
+    email: 'yazan.ali@example.com',
+    phone: '+963 966 111 222',
+    favoriteCarIndexes: [9, 12, 24, 27]
+  },
+  {
+    fullName: 'Sara Omari',
+    email: 'sara.omari@example.com',
+    phone: '+963 933 444 555',
+    favoriteCarIndexes: [2, 10, 16, 28]
+  },
+  {
+    fullName: 'Bassel Agha',
+    email: 'bassel.agha@example.com',
+    phone: '+963 988 555 666',
+    favoriteCarIndexes: [6, 11, 23]
+  }
+];
+
 function commissionAmount(finalPrice: number, commissionType: 'PERCENTAGE' | 'FIXED', commissionValue: number) {
   return commissionType === 'PERCENTAGE'
     ? Number(((finalPrice * commissionValue) / 100).toFixed(2))
@@ -520,26 +941,39 @@ async function main() {
 
     const ownerPassword = process.env.DEMO_OWNER_PASSWORD ?? 'admin123';
     const staffPassword = process.env.DEMO_STAFF_PASSWORD ?? 'staff1234';
+    const customerPassword = process.env.DEMO_CUSTOMER_PASSWORD ?? 'customer123';
 
     const ownerHash = await bcrypt.hash(ownerPassword, 12);
     const staffHash = await bcrypt.hash(staffPassword, 12);
+    const customerHash = await bcrypt.hash(customerPassword, 12);
+
+    const vendorResult = await client.query<{ id: string }>(
+      `INSERT INTO vendors (name, status)
+       SELECT $1::varchar(160), 'ACTIVE'
+       WHERE NOT EXISTS (SELECT 1 FROM vendors WHERE name = $1)
+       RETURNING id`,
+      ['Drive X Direct']
+    );
+    const vendorId =
+      vendorResult.rows[0]?.id ??
+      (await client.query<{ id: string }>(`SELECT id FROM vendors WHERE name = $1`, ['Drive X Direct'])).rows[0].id;
 
     const ownerResult = await client.query<{ id: string }>(
-      `INSERT INTO admin_users (email, password_hash, full_name, role)
-       VALUES ($1, $2, $3, 'OWNER')
+      `INSERT INTO admin_users (email, password_hash, full_name, role, vendor_id)
+       VALUES ($1, $2, $3, 'OWNER', $4)
        ON CONFLICT (email)
-       DO UPDATE SET password_hash = EXCLUDED.password_hash, full_name = EXCLUDED.full_name, role = 'OWNER', updated_at = NOW()
+       DO UPDATE SET password_hash = EXCLUDED.password_hash, full_name = EXCLUDED.full_name, role = 'OWNER', vendor_id = EXCLUDED.vendor_id, updated_at = NOW()
        RETURNING id`,
-      ['admin@drivex.com', ownerHash, 'DriveX Owner']
+      ['admin@drivex.com', ownerHash, 'DriveX Owner', vendorId]
     );
 
     const staffResult = await client.query<{ id: string }>(
-      `INSERT INTO admin_users (email, password_hash, full_name, role)
-       VALUES ($1, $2, $3, 'STAFF')
+      `INSERT INTO admin_users (email, password_hash, full_name, role, vendor_id)
+       VALUES ($1, $2, $3, 'STAFF', $4)
        ON CONFLICT (email)
-       DO UPDATE SET password_hash = EXCLUDED.password_hash, full_name = EXCLUDED.full_name, role = 'STAFF', updated_at = NOW()
+       DO UPDATE SET password_hash = EXCLUDED.password_hash, full_name = EXCLUDED.full_name, role = 'STAFF', vendor_id = EXCLUDED.vendor_id, updated_at = NOW()
        RETURNING id`,
-      ['staff@drivex.com', staffHash, 'DriveX Staff']
+      ['staff@drivex.com', staffHash, 'DriveX Staff', vendorId]
     );
 
     const ownerId = ownerResult.rows[0].id;
@@ -559,25 +993,33 @@ async function main() {
 
     await client.query(`DELETE FROM deals WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM leads WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
+    await client.query(`DELETE FROM customer_favorites WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM car_images WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM cars WHERE id = ANY($1::uuid[])`, [staleCarIds]);
+    await client.query(`DELETE FROM customer_refresh_tokens WHERE customer_user_id IN (SELECT id FROM customer_users WHERE email = ANY($1::text[]))`, [
+      customers.map((customer) => customer.email)
+    ]);
+    await client.query(`DELETE FROM customer_users WHERE email = ANY($1::text[])`, [
+      customers.map((customer) => customer.email)
+    ]);
 
     const carIds: string[] = [];
 
-    for (const [carIndex, car] of cars.entries()) {
+    for (const [carIndex, car] of allCars.entries()) {
       const result = await client.query<{ id: string }>(
         `INSERT INTO cars (
-          brand, model, year, listing_type, condition, status,
+          vendor_id, brand, model, year, listing_type, condition, status,
           sale_price_amount, sale_price_currency,
           daily_rent_price_amount, daily_rent_price_currency,
           monthly_rent_price_amount, monthly_rent_price_currency,
           mileage_km, transmission, fuel_type, color, city,
           engine, seats, drivetrain, horsepower, description, updated_by
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
         )
         RETURNING id`,
         [
+          vendorId,
           car.brand,
           car.model,
           car.year,
@@ -607,7 +1049,7 @@ async function main() {
       const carId = result.rows[0].id;
       carIds.push(carId);
 
-      const imageFiles = SEED_IMAGE_FILES[carIndex] ?? [];
+      const imageFiles = SEED_IMAGE_FILES[carIndex % cars.length] ?? [];
       for (const [index, filename] of imageFiles.entries()) {
         const sourcePath = path.join(SEED_ASSETS_DIR, filename);
         if (!fs.existsSync(sourcePath)) {
@@ -644,6 +1086,29 @@ async function main() {
           })
         ]
       );
+    }
+
+    const customerIds: string[] = [];
+    for (const customer of customers) {
+      const result = await client.query<{ id: string }>(
+        `INSERT INTO customer_users (email, password_hash, full_name, phone)
+         VALUES ($1,$2,$3,$4)
+         RETURNING id`,
+        [customer.email, customerHash, customer.fullName, customer.phone]
+      );
+      const customerId = result.rows[0].id;
+      customerIds.push(customerId);
+
+      for (const carIndex of customer.favoriteCarIndexes) {
+        const carId = carIds[carIndex];
+        if (!carId) continue;
+        await client.query(
+          `INSERT INTO customer_favorites (customer_user_id, car_id)
+           VALUES ($1,$2)
+           ON CONFLICT DO NOTHING`,
+          [customerId, carId]
+        );
+      }
     }
 
     const leadIds: string[] = [];
@@ -747,8 +1212,9 @@ async function main() {
     console.log('Seeded demo data successfully.');
     console.log('Admin login: admin@drivex.com / admin123');
     console.log('Staff login: staff@drivex.com / staff1234');
+    console.log('Customer logins: use any listed customer email / customer123');
     const totalImages = Object.values(SEED_IMAGE_FILES).reduce((sum, files) => sum + files.length, 0);
-    console.log(`Cars: ${cars.length}, images: ${totalImages}, leads: ${leads.length}, deals: ${deals.length}`);
+    console.log(`Cars: ${allCars.length}, image uploads: ${allCars.length * 2}, customers: ${customers.length}, leads: ${leads.length}, deals: ${deals.length}`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -760,6 +1226,5 @@ async function main() {
 
 main().catch(async (err) => {
   console.error(err);
-  await pool.end();
   process.exit(1);
 });

@@ -7,6 +7,17 @@ function carStatusForDealType(type: string) {
   return type === 'SALE' ? 'SOLD' : 'RENTED';
 }
 
+// Pillar 2, item 25: a single flat platform-wide take-rate at launch (e.g. 2.5% on every
+// completed deal, any vendor) - NOT per-vendor negotiated, NOT volume-tiered. The rate lives
+// in platform_settings so it's data-driven and auditable, and every deal reuses this one
+// number via the same commissionAmount() pattern as before.
+export async function getCommissionRate() {
+  const result = await query<{ value: string }>(
+    `SELECT value FROM platform_settings WHERE key = 'commission_rate_percent'`
+  );
+  return Number(result.rows[0]?.value ?? 0);
+}
+
 function commissionAmount(finalPrice: number, commissionType: string, commissionValue: number) {
   if (commissionType === 'PERCENTAGE') {
     return Number(((finalPrice * commissionValue) / 100).toFixed(2));
@@ -29,30 +40,56 @@ function mapDeal(row: any) {
   };
 }
 
-export async function listDeals(filters: any) {
-  const count = await query<{ count: string }>(`SELECT COUNT(*) FROM deals`);
+// Deals don't carry their own vendor_id either - scope is derived via the linked car.
+export async function listDeals(filters: any, vendorScopeId?: string) {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (vendorScopeId) {
+    params.push(vendorScopeId);
+    where.push(`car_id IN (SELECT id FROM cars WHERE vendor_id = $${params.length})`);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const count = await query<{ count: string }>(`SELECT COUNT(*) FROM deals ${whereSql}`, params);
   const total = Number(count.rows[0].count);
   const orderBy = filters.sortBy === 'oldest' ? 'created_at ASC' : 'created_at DESC';
+  const pageParams = [...params, filters.limit, offset(filters.page, filters.limit)];
   const result = await query(
-    `SELECT * FROM deals ORDER BY ${orderBy} LIMIT $1 OFFSET $2`,
-    [filters.limit, offset(filters.page, filters.limit)]
+    `SELECT * FROM deals ${whereSql} ORDER BY ${orderBy} LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+    pageParams
   );
 
   return { items: result.rows.map(mapDeal), ...paginationMeta(filters.page, filters.limit, total) };
 }
 
-export async function getDeal(id: string) {
-  const result = await query(`SELECT * FROM deals WHERE id = $1`, [id]);
+export async function getDeal(id: string, vendorScopeId?: string) {
+  const where = ['id = $1'];
+  const params: unknown[] = [id];
+  if (vendorScopeId) {
+    params.push(vendorScopeId);
+    where.push(`car_id IN (SELECT id FROM cars WHERE vendor_id = $${params.length})`);
+  }
+
+  const result = await query(`SELECT * FROM deals WHERE ${where.join(' AND ')}`, params);
   if (!result.rows[0]) {
     throw notFound('Deal not found');
   }
   return mapDeal(result.rows[0]);
 }
 
-export async function createDeal(data: any, adminId: string) {
-  const amount = commissionAmount(data.finalPrice.amount, data.commissionType, data.commissionValue);
+export async function createDeal(data: any, adminId: string, vendorScopeId: string) {
+  const rate = await getCommissionRate();
+  const amount = commissionAmount(data.finalPrice.amount, 'PERCENTAGE', rate);
 
   return withTransaction(async (client) => {
+    const car = await client.query(`SELECT id FROM cars WHERE id = $1 AND vendor_id = $2`, [
+      data.carId,
+      vendorScopeId
+    ]);
+    if (!car.rows[0]) {
+      throw notFound('Car not found');
+    }
+
     const result = await client.query(
       `INSERT INTO deals (
         lead_id, car_id, type, final_price_amount, final_price_currency,
@@ -65,8 +102,8 @@ export async function createDeal(data: any, adminId: string) {
         data.type,
         data.finalPrice.amount,
         data.finalPrice.currency,
-        data.commissionType,
-        data.commissionValue,
+        'PERCENTAGE',
+        rate,
         amount,
         data.finalPrice.currency,
         data.notes,
@@ -89,7 +126,7 @@ export async function createDeal(data: any, adminId: string) {
   });
 }
 
-export async function updateDeal(id: string, data: any, adminId: string) {
+export async function updateDeal(id: string, data: any, adminId: string, vendorScopeId: string) {
   return withTransaction(async (client: PoolClient) => {
     const currentResult = await client.query(`SELECT * FROM deals WHERE id = $1 FOR UPDATE`, [id]);
     const currentRow = currentResult.rows[0];
@@ -98,13 +135,30 @@ export async function updateDeal(id: string, data: any, adminId: string) {
     }
     const current = mapDeal(currentRow);
 
+    const ownsCurrentCar = await client.query(`SELECT id FROM cars WHERE id = $1 AND vendor_id = $2`, [
+      current.carId,
+      vendorScopeId
+    ]);
+    if (!ownsCurrentCar.rows[0]) {
+      throw notFound('Deal not found');
+    }
+
     const leadId = data.leadId ?? current.leadId;
     const carId = data.carId ?? current.carId;
+
+    if (carId !== current.carId) {
+      const ownsNewCar = await client.query(`SELECT id FROM cars WHERE id = $1 AND vendor_id = $2`, [
+        carId,
+        vendorScopeId
+      ]);
+      if (!ownsNewCar.rows[0]) {
+        throw notFound('Car not found');
+      }
+    }
     const type = data.type ?? current.type;
     const finalPrice = data.finalPrice ?? current.finalPrice;
-    const commissionType = data.commissionType ?? current.commissionType;
-    const commissionValue = data.commissionValue ?? current.commissionValue;
-    const amount = commissionAmount(finalPrice.amount, commissionType, commissionValue);
+    const rate = await getCommissionRate();
+    const amount = commissionAmount(finalPrice.amount, 'PERCENTAGE', rate);
 
     const result = await client.query(
       `UPDATE deals SET
@@ -126,8 +180,8 @@ export async function updateDeal(id: string, data: any, adminId: string) {
         type,
         finalPrice.amount,
         finalPrice.currency,
-        commissionType,
-        commissionValue,
+        'PERCENTAGE',
+        rate,
         amount,
         finalPrice.currency,
         data.notes ?? current.notes,
@@ -170,7 +224,7 @@ export async function updateDeal(id: string, data: any, adminId: string) {
   });
 }
 
-export async function deleteDeal(id: string, adminId: string) {
+export async function deleteDeal(id: string, adminId: string, vendorScopeId: string) {
   return withTransaction(async (client: PoolClient) => {
     const currentResult = await client.query(`SELECT * FROM deals WHERE id = $1 FOR UPDATE`, [id]);
     const currentRow = currentResult.rows[0];
@@ -178,6 +232,14 @@ export async function deleteDeal(id: string, adminId: string) {
       throw notFound('Deal not found');
     }
     const current = mapDeal(currentRow);
+
+    const ownsCar = await client.query(`SELECT id FROM cars WHERE id = $1 AND vendor_id = $2`, [
+      current.carId,
+      vendorScopeId
+    ]);
+    if (!ownsCar.rows[0]) {
+      throw notFound('Deal not found');
+    }
 
     await client.query(`DELETE FROM deals WHERE id = $1`, [id]);
 

@@ -5,6 +5,10 @@ function paramValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value ?? '';
 }
 
+function vendorScope(req: Parameters<RequestHandler>[0]): string | undefined {
+  return req.user!.role === 'PLATFORM_ADMIN' ? undefined : (req.user!.vendorId ?? undefined);
+}
+
 export const createLead: RequestHandler = async (req, res, next) => {
   try {
     res.status(201).json(await leadsService.createLead(req.body));
@@ -23,7 +27,7 @@ export const getMyLeads: RequestHandler = async (req, res, next) => {
 
 export const listLeads: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await leadsService.listLeads(req.query));
+    res.json(await leadsService.listLeads(req.query, vendorScope(req)));
   } catch (err) {
     next(err);
   }
@@ -31,7 +35,7 @@ export const listLeads: RequestHandler = async (req, res, next) => {
 
 export const getLead: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await leadsService.getLead(paramValue(req.params.leadId)));
+    res.json(await leadsService.getLead(paramValue(req.params.leadId), vendorScope(req)));
   } catch (err) {
     next(err);
   }
@@ -39,7 +43,9 @@ export const getLead: RequestHandler = async (req, res, next) => {
 
 export const updateLead: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await leadsService.updateLead(paramValue(req.params.leadId), req.body, req.user!.id));
+    res.json(
+      await leadsService.updateLead(paramValue(req.params.leadId), req.body, req.user!.id, vendorScope(req))
+    );
   } catch (err) {
     next(err);
   }

@@ -1,8 +1,24 @@
 import { RequestHandler } from 'express';
+import { unauthorized } from '../../shared/errors';
 import * as carsService from './cars.service';
 
 function paramValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value ?? '';
+}
+
+// undefined = no vendor filter (Platform Admin sees every vendor's cars).
+function vendorScope(req: Parameters<RequestHandler>[0]): string | undefined {
+  return req.user!.role === 'PLATFORM_ADMIN' ? undefined : (req.user!.vendorId ?? undefined);
+}
+
+// OWNER/STAFF always have a vendorId (enforced by the admin_users_role_vendor_check
+// constraint) - this only throws if that invariant is ever violated.
+function requireVendorId(req: Parameters<RequestHandler>[0]): string {
+  const vendorId = req.user!.vendorId;
+  if (!vendorId) {
+    throw unauthorized('This action requires a vendor-scoped account, not a Platform Admin.');
+  }
+  return vendorId;
 }
 
 export const listPublicCars: RequestHandler = async (req, res, next) => {
@@ -31,7 +47,7 @@ export const filtersMeta: RequestHandler = async (_req, res, next) => {
 
 export const listAdminCars: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await carsService.listCars(req.query as any, false));
+    res.json(await carsService.listCars(req.query as any, false, vendorScope(req)));
   } catch (err) {
     next(err);
   }
@@ -39,7 +55,7 @@ export const listAdminCars: RequestHandler = async (req, res, next) => {
 
 export const getAdminCar: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await carsService.getCar(paramValue(req.params.carId), false));
+    res.json(await carsService.getCar(paramValue(req.params.carId), false, vendorScope(req)));
   } catch (err) {
     next(err);
   }
@@ -47,7 +63,7 @@ export const getAdminCar: RequestHandler = async (req, res, next) => {
 
 export const createCar: RequestHandler = async (req, res, next) => {
   try {
-    res.status(201).json(await carsService.createCar(req.body, req.user!.id));
+    res.status(201).json(await carsService.createCar(req.body, req.user!.id, requireVendorId(req)));
   } catch (err) {
     next(err);
   }
@@ -55,7 +71,9 @@ export const createCar: RequestHandler = async (req, res, next) => {
 
 export const updateCar: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await carsService.updateCar(paramValue(req.params.carId), req.body, req.user!.id));
+    res.json(
+      await carsService.updateCar(paramValue(req.params.carId), req.body, req.user!.id, requireVendorId(req))
+    );
   } catch (err) {
     next(err);
   }
@@ -63,7 +81,7 @@ export const updateCar: RequestHandler = async (req, res, next) => {
 
 export const deleteCar: RequestHandler = async (req, res, next) => {
   try {
-    await carsService.softDeleteCar(paramValue(req.params.carId));
+    await carsService.softDeleteCar(paramValue(req.params.carId), requireVendorId(req));
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -81,7 +99,8 @@ export const uploadImage: RequestHandler = async (req, res, next) => {
       carId,
       req.file,
       req.body.isPrimary === 'true' || req.body.isPrimary === true,
-      Number(req.body.position ?? 0)
+      Number(req.body.position ?? 0),
+      requireVendorId(req)
     );
 
     return res.status(201).json(image);
@@ -92,7 +111,7 @@ export const uploadImage: RequestHandler = async (req, res, next) => {
 
 export const deleteImage: RequestHandler = async (req, res, next) => {
   try {
-    await carsService.deleteImage(paramValue(req.params.carId), paramValue(req.params.imageId));
+    await carsService.deleteImage(paramValue(req.params.carId), paramValue(req.params.imageId), requireVendorId(req));
     res.status(204).send();
   } catch (err) {
     next(err);

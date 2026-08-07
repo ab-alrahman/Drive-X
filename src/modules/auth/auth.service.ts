@@ -13,6 +13,7 @@ interface AdminUserRow {
   password_hash: string;
   full_name: string | null;
   role: AdminRole;
+  vendor_id: string | null;
 }
 
 function hashToken(token: string) {
@@ -26,9 +27,11 @@ function signAccessToken(user: AuthUser) {
 }
 
 function signRefreshToken(user: AuthUser) {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role }, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.REFRESH_TOKEN_TTL as SignOptions['expiresIn']
-  });
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role, vendorId: user.vendorId },
+    env.JWT_REFRESH_SECRET,
+    { expiresIn: env.REFRESH_TOKEN_TTL as SignOptions['expiresIn'] }
+  );
 }
 
 function ttlToPostgresInterval(ttl: string) {
@@ -74,9 +77,21 @@ async function storeRefreshToken(userId: string, refreshToken: string) {
   );
 }
 
+// Shared by login() and by vendors.service.ts's self-serve registration - a brand new vendor
+// owner account gets signed in immediately, the same way a login would, without duplicating
+// the JWT-signing logic in a second module.
+export async function issueTokens(user: AuthUser) {
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  await storeRefreshToken(user.id, refreshToken);
+
+  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ttlToSeconds(env.ACCESS_TOKEN_TTL) };
+}
+
 export async function login(email: string, password: string) {
   const result = await query<AdminUserRow>(
-    `SELECT id, email, password_hash, full_name, role FROM admin_users WHERE email = $1`,
+    `SELECT id, email, password_hash, full_name, role, vendor_id FROM admin_users WHERE email = $1`,
     [email]
   );
   const admin = result.rows[0];
@@ -85,13 +100,8 @@ export async function login(email: string, password: string) {
     throw unauthorized('Invalid email or password');
   }
 
-  const user: AuthUser = { id: admin.id, email: admin.email, role: admin.role };
-  const accessToken = signAccessToken(user);
-  const refreshToken = signRefreshToken(user);
-
-  await storeRefreshToken(user.id, refreshToken);
-
-  return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ttlToSeconds(env.ACCESS_TOKEN_TTL) };
+  const user: AuthUser = { id: admin.id, email: admin.email, role: admin.role, vendorId: admin.vendor_id };
+  return issueTokens(user);
 }
 
 export async function refresh(refreshToken: string) {
@@ -131,7 +141,7 @@ export async function logout(refreshToken: string) {
 
 export async function getProfile(id: string) {
   const result = await query<AdminUserRow>(
-    `SELECT id, email, full_name, role FROM admin_users WHERE id = $1`,
+    `SELECT id, email, full_name, role, vendor_id FROM admin_users WHERE id = $1`,
     [id]
   );
 
@@ -140,13 +150,13 @@ export async function getProfile(id: string) {
   }
 
   const admin = result.rows[0];
-  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role };
+  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role, vendorId: admin.vendor_id };
 }
 
 export async function updateProfile(id: string, fullName: string) {
   const result = await query<AdminUserRow>(
     `UPDATE admin_users SET full_name = $1, updated_at = NOW() WHERE id = $2
-     RETURNING id, email, full_name, role`,
+     RETURNING id, email, full_name, role, vendor_id`,
     [fullName, id]
   );
 
@@ -155,5 +165,5 @@ export async function updateProfile(id: string, fullName: string) {
   }
 
   const admin = result.rows[0];
-  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role };
+  return { id: admin.id, email: admin.email, fullName: admin.full_name, role: admin.role, vendorId: admin.vendor_id };
 }

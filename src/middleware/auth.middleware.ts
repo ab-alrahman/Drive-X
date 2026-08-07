@@ -3,12 +3,14 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { forbidden, unauthorized } from '../shared/errors';
 
-export type AdminRole = 'OWNER' | 'STAFF';
+export type AdminRole = 'OWNER' | 'STAFF' | 'PLATFORM_ADMIN';
 
 export interface AuthUser {
   id: string;
   email: string;
   role: AdminRole;
+  // null only for PLATFORM_ADMIN - every OWNER/STAFF is scoped to exactly one vendor.
+  vendorId: string | null;
 }
 
 export interface CustomerAuthUser {

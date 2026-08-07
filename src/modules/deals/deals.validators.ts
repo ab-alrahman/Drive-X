@@ -15,8 +15,10 @@ export const createDealSchema = z.object({
   carId: z.string().uuid(),
   type: z.enum(['SALE', 'RENT']),
   finalPrice: moneySchema,
-  commissionType: z.enum(['PERCENTAGE', 'FIXED']),
-  commissionValue: z.number().nonnegative(),
+  // Deprecated: commission is now the flat platform-wide rate (item 25). Kept optional for
+  // backward-compatible clients; the service always overrides them with the central rate.
+  commissionType: z.enum(['PERCENTAGE', 'FIXED']).optional(),
+  commissionValue: z.number().nonnegative().optional(),
   notes: z.string().optional()
 });
 

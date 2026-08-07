@@ -59,10 +59,16 @@ export async function createLead(data: any) {
   return { leadId: result.rows[0].id, message: 'Your request has been received successfully.' };
 }
 
-export async function listLeads(filters: any) {
+// Leads don't carry their own vendor_id (see the multi-tenancy decision) - scope is derived by
+// joining to the car they're about. undefined vendorScopeId = no filter (Platform Admin).
+export async function listLeads(filters: any, vendorScopeId?: string) {
   const where: string[] = [];
   const params: unknown[] = [];
 
+  if (vendorScopeId) {
+    params.push(vendorScopeId);
+    where.push(`car_id IN (SELECT id FROM cars WHERE vendor_id = $${params.length})`);
+  }
   if (filters.status) {
     params.push(filters.status);
     where.push(`status = $${params.length}`);
@@ -87,8 +93,15 @@ export async function listLeads(filters: any) {
   return { items: result.rows.map(mapLead), ...paginationMeta(filters.page, filters.limit, total) };
 }
 
-export async function getLead(id: string) {
-  const result = await query(`SELECT * FROM leads WHERE id = $1`, [id]);
+export async function getLead(id: string, vendorScopeId?: string) {
+  const where = ['id = $1'];
+  const params: unknown[] = [id];
+  if (vendorScopeId) {
+    params.push(vendorScopeId);
+    where.push(`car_id IN (SELECT id FROM cars WHERE vendor_id = $${params.length})`);
+  }
+
+  const result = await query(`SELECT * FROM leads WHERE ${where.join(' AND ')}`, params);
   if (!result.rows[0]) {
     throw notFound('Lead not found');
   }
@@ -130,16 +143,23 @@ export async function getMyLeads(customerEmail: string, filters: any) {
   return { items: result.rows.map(mapLead), ...paginationMeta(filters.page, filters.limit, total) };
 }
 
-export async function updateLead(id: string, data: any, adminId: string) {
+export async function updateLead(id: string, data: any, adminId: string, vendorScopeId?: string) {
+  const where = ['id = $4'];
+  const params = [data.status, data.adminNotes, adminId, id];
+  if (vendorScopeId) {
+    params.push(vendorScopeId);
+    where.push(`car_id IN (SELECT id FROM cars WHERE vendor_id = $${params.length})`);
+  }
+
   const result = await query(
     `UPDATE leads SET
       status = COALESCE($1, status),
       admin_notes = COALESCE($2, admin_notes),
       updated_by = $3,
       updated_at = NOW()
-     WHERE id = $4
+     WHERE ${where.join(' AND ')}
      RETURNING *`,
-    [data.status, data.adminNotes, adminId, id]
+    params
   );
 
   if (!result.rows[0]) {

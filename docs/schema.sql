@@ -57,10 +57,57 @@ EXCEPTION
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE admin_role AS ENUM ('OWNER', 'STAFF');
+  CREATE TYPE admin_role AS ENUM ('OWNER', 'STAFF', 'PLATFORM_ADMIN');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
+
+DO $$ BEGIN
+  CREATE TYPE inspection_requester_role AS ENUM ('SELLER', 'BUYER', 'RENTER');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE inspection_source_type AS ENUM ('EXTERNAL_FILE', 'TEMPLATE', 'DRIVEX_INSPECTION');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE inspection_round_status AS ENUM (
+    'OPENED', 'INTERNAL_REVIEW', 'FILE_ACCEPTED', 'ESCALATED_TO_TECHNICIAN',
+    'SCHEDULED', 'IN_PROGRESS', 'REPORT_SUBMITTED', 'CERTIFIED', 'CANCELLED', 'FLAGGED_FRAUDULENT'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE inspection_service_tier AS ENUM ('QUICK', 'COMPREHENSIVE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE inspection_finding_severity AS ENUM ('MINOR', 'MODERATE', 'SEVERE', 'SAFETY_CRITICAL');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(160) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'SUSPENDED')),
+  suspended_at TIMESTAMPTZ,
+  suspended_reason TEXT,
+  -- Auto-set by the 3+ substantiated-complaints-in-30-days rule; FLAGS for Platform Admin
+  -- review, does NOT suspend (a human makes the final suspend call).
+  flagged_at TIMESTAMPTZ,
+  flagged_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS admin_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,9 +115,25 @@ CREATE TABLE IF NOT EXISTS admin_users (
   password_hash TEXT NOT NULL,
   full_name VARCHAR(120),
   role admin_role NOT NULL DEFAULT 'OWNER',
+  -- NULL = Platform Admin (oversees every vendor); set = scoped to that vendor as OWNER/STAFF.
+  vendor_id UUID REFERENCES vendors(id) ON DELETE RESTRICT,
   token_version INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT admin_users_role_vendor_check CHECK (
+    (role = 'PLATFORM_ADMIN' AND vendor_id IS NULL) OR
+    (role IN ('OWNER', 'STAFF') AND vendor_id IS NOT NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS platform_admin_actions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES admin_users(id),
+  action VARCHAR(40) NOT NULL,
+  target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('VENDOR', 'CAR')),
+  target_id UUID NOT NULL,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -103,6 +166,7 @@ CREATE TABLE IF NOT EXISTS customer_refresh_tokens (
 
 CREATE TABLE IF NOT EXISTS cars (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE RESTRICT,
   brand VARCHAR(80) NOT NULL,
   model VARCHAR(80) NOT NULL,
   year INT NOT NULL CHECK (year >= 1980 AND year <= 2100),
@@ -129,6 +193,10 @@ CREATE TABLE IF NOT EXISTS cars (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by UUID REFERENCES admin_users(id),
   deleted_at TIMESTAMPTZ,
+  -- Orthogonal to the vendor's own status field - set by Platform Admin oversight actions
+  -- (see platform_admin_actions); unset restores exactly whatever status the vendor had set.
+  hidden_by_platform_at TIMESTAMPTZ,
+  hidden_reason TEXT,
   CONSTRAINT chk_sale_price_required
     CHECK (
       listing_type NOT IN ('SALE', 'BOTH') OR sale_price_amount IS NOT NULL
@@ -199,6 +267,59 @@ CREATE TABLE IF NOT EXISTS customer_favorites (
   PRIMARY KEY (customer_user_id, car_id)
 );
 
+CREATE TABLE IF NOT EXISTS technicians (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(120) NOT NULL,
+  city VARCHAR(80) NOT NULL,
+  phone VARCHAR(30),
+  service_tiers inspection_service_tier[] NOT NULL DEFAULT '{}',
+  specialty VARCHAR(80),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inspection_cases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  car_id UUID NOT NULL UNIQUE REFERENCES cars(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inspection_rounds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id UUID NOT NULL REFERENCES inspection_cases(id) ON DELETE CASCADE,
+  round_number INT NOT NULL,
+  requested_by_role inspection_requester_role NOT NULL,
+  requested_by_admin_id UUID REFERENCES admin_users(id),
+  requested_by_customer_id UUID REFERENCES customer_users(id),
+  source_type inspection_source_type NOT NULL,
+  status inspection_round_status NOT NULL DEFAULT 'OPENED',
+  template_data JSONB,
+  external_file_url TEXT,
+  technician_id UUID REFERENCES technicians(id),
+  scheduled_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  overall_verdict VARCHAR(40),
+  price_amount NUMERIC(12,2),
+  price_currency VARCHAR(3) CHECK (price_currency IS NULL OR price_currency IN ('USD', 'SYP')),
+  paid_by VARCHAR(20) CHECK (paid_by IS NULL OR paid_by IN ('SELLER', 'BUYER', 'RENTER', 'DRIVEX')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (case_id, round_number)
+);
+
+CREATE TABLE IF NOT EXISTS inspection_findings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  round_id UUID NOT NULL REFERENCES inspection_rounds(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  severity inspection_finding_severity NOT NULL,
+  estimated_repair_cost_amount NUMERIC(12,2),
+  estimated_repair_cost_currency VARCHAR(3) CHECK (estimated_repair_cost_currency IS NULL OR estimated_repair_cost_currency IN ('USD', 'SYP')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_cars_brand_model ON cars (brand, model);
 CREATE INDEX IF NOT EXISTS idx_cars_status ON cars (status);
 CREATE INDEX IF NOT EXISTS idx_cars_listing_type ON cars (listing_type);
@@ -213,3 +334,35 @@ CREATE INDEX IF NOT EXISTS idx_leads_intent ON leads (intent);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_created_at ON deals (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customer_favorites_car ON customer_favorites (car_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_rounds_case ON inspection_rounds (case_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_rounds_status ON inspection_rounds (status);
+CREATE INDEX IF NOT EXISTS idx_inspection_findings_round ON inspection_findings (round_id);
+CREATE INDEX IF NOT EXISTS idx_technicians_city ON technicians (city);
+CREATE INDEX IF NOT EXISTS idx_admin_users_vendor ON admin_users (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_cars_vendor ON cars (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_platform_admin_actions_target ON platform_admin_actions (target_type, target_id);
+
+-- Flat platform-wide take-rate (single row, key = 'commission_rate_percent').
+CREATE TABLE IF NOT EXISTS platform_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key VARCHAR(80) NOT NULL UNIQUE,
+  value NUMERIC(12,4) NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS complaints (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES customer_users(id) ON DELETE SET NULL,
+  description TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'OPEN'
+    CHECK (status IN ('OPEN', 'SUBSTANTIATED', 'DISMISSED', 'RESOLVED')),
+  reviewed_by UUID REFERENCES admin_users(id),
+  reviewed_at TIMESTAMPTZ,
+  review_note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_complaints_car ON complaints (car_id);
+CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints (status);
+CREATE INDEX IF NOT EXISTS idx_complaints_created ON complaints (created_at);

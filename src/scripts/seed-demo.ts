@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
 import path from 'path';
+import { cloudinary, uploadBuffer } from '../config/cloudinary';
 import { pool } from '../config/db';
-import { env } from '../config/env';
+import fs from 'fs';
 
 const DEMO_MARKER = '[DEMO_SEED]';
 const SEED_ASSETS_DIR = path.resolve(__dirname, '../../seed-assets/cars');
@@ -30,24 +30,21 @@ function mimeTypeForExt(ext: string) {
   return 'image/jpeg';
 }
 
-// Mirrors upload.middleware.ts's real-upload layout so seeded images are
-// indistinguishable from admin-uploaded ones (same dir/filename/URL shape).
-function copySeedImage(carId: string, sourceFilename: string) {
+// Uploads seed photos to Cloudinary (same destination real admin uploads go to,
+// see cars.service.ts addImage) instead of writing to local disk, so seeded
+// images work the same way in every environment regardless of who runs the seed.
+async function uploadSeedImage(carId: string, sourceFilename: string) {
   const sourcePath = path.join(SEED_ASSETS_DIR, sourceFilename);
   const ext = path.extname(sourceFilename).toLowerCase();
-  const destFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-  const destDir = path.resolve(env.UPLOAD_DIR, 'cars', carId);
-  fs.mkdirSync(destDir, { recursive: true });
-  const destPath = path.join(destDir, destFilename);
-  fs.copyFileSync(sourcePath, destPath);
-  const storageKey = `cars/${carId}/${destFilename}`;
+  const buffer = fs.readFileSync(sourcePath);
+  const uploaded = await uploadBuffer(buffer, `drivex/cars/${carId}`);
 
   return {
-    imageUrl: `${env.PUBLIC_BASE_URL}/uploads/${storageKey}`,
-    storageKey,
-    localPath: destPath,
+    imageUrl: uploaded.secure_url,
+    storageKey: uploaded.public_id,
+    localPath: null,
     mimeType: mimeTypeForExt(ext),
-    sizeBytes: fs.statSync(destPath).size
+    sizeBytes: uploaded.bytes
   };
 }
 
@@ -557,7 +554,7 @@ async function main() {
     const staleCarIds = staleCars.rows.map((row) => row.id);
 
     for (const staleCarId of staleCarIds) {
-      fs.rmSync(path.resolve(env.UPLOAD_DIR, 'cars', staleCarId), { recursive: true, force: true });
+      await cloudinary.api.delete_resources_by_prefix(`drivex/cars/${staleCarId}`).catch(() => undefined);
     }
 
     await client.query(`DELETE FROM deals WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
@@ -617,7 +614,7 @@ async function main() {
           console.warn(`Seed image missing on disk, skipping: ${filename}`);
           continue;
         }
-        const { imageUrl, storageKey, localPath, mimeType, sizeBytes } = copySeedImage(carId, filename);
+        const { imageUrl, storageKey, localPath, mimeType, sizeBytes } = await uploadSeedImage(carId, filename);
         await client.query(
           `INSERT INTO car_images (
             car_id, image_url, storage_key, local_path, mime_type, size_bytes, is_primary, position
@@ -625,6 +622,28 @@ async function main() {
           [carId, imageUrl, storageKey, localPath, mimeType, sizeBytes, index === 0, index]
         );
       }
+
+      // Pillar 1: every listed car needs an accepted maintenance file or certified inspection
+      // (enforced by cars.service.ts for real admin traffic) - backfill a filled-in template
+      // for each seeded car so the demo data satisfies the same rule, not a special exemption.
+      const caseResult = await client.query<{ id: string }>(
+        `INSERT INTO inspection_cases (car_id) VALUES ($1) RETURNING id`,
+        [carId]
+      );
+      await client.query(
+        `INSERT INTO inspection_rounds (
+          case_id, round_number, requested_by_role, requested_by_admin_id, source_type, status, template_data
+        ) VALUES ($1,1,'SELLER',$2,'TEMPLATE','FILE_ACCEPTED',$3)`,
+        [
+          caseResult.rows[0].id,
+          ownerId,
+          JSON.stringify({
+            lastServiceDate: '2026-05-15',
+            mileageAtService: car.mileageKm,
+            notes: `Seller-reported maintenance history for the ${car.brand} ${car.model}.`
+          })
+        ]
+      );
     }
 
     const leadIds: string[] = [];

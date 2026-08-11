@@ -165,3 +165,145 @@ Pillar 2 - Multi-vendor marketplace (in progress, planning)
       "full control" carve-out for it, to avoid scattering one-off conditionals through the
       authorization logic. The 12 existing seeded cars get migrated to this "Drive X Direct"
       vendor row (not left vendor-less, not attached to the Platform Admin account).
+
+Pillar 3 - Customer maintenance service layer (planning, not implementation yet)
+30 - Product distinction: keep "inspection" and "maintenance" related but separate.
+      Inspection = trust/certification workflow before listing or before buyer/renter decision.
+      Maintenance = after-sale / after-rent / owner-care service workflow for customers who
+      already own or use a car and need regular service, repair, or follow-up.
+31 - Core customer value: customer can request maintenance from Drive X without needing to call
+      vendors manually. Drive X becomes the coordinator between customer, vendor, technician/
+      garage partner, and the car's known inspection/service history.
+32 - MVP entry points:
+      (a) customer dashboard: "Request Maintenance" button,
+      (b) car detail page: if logged in, request maintenance for this car,
+      (c) after a completed deal: customer sees the purchased/rented car under "My Cars" and can
+      request maintenance from there,
+      (d) admin/vendor dashboard: maintenance requests queue.
+      DECIDED: maintenance is ONLY for cars that belong to the Drive X marketplace ecosystem.
+      No external/manual-only cars in MVP. A request must link to an existing Drive X car and,
+      when possible, to a completed sale/rent deal for that customer.
+33 - Customer request form fields (MVP):
+      - car reference: existing Drive X car/deal only
+      - request type: ROUTINE_SERVICE, REPAIR, DIAGNOSTIC, EMERGENCY, OTHER
+      - symptoms/notes
+      - preferred city/area
+      - preferred date/time window
+      - pickup/delivery needed? yes/no
+      - customer contact phone
+      - optional images/files
+34 - Maintenance request statuses:
+      NEW -> TRIAGED -> ASSIGNED_TO_PARTNER -> SCHEDULED -> IN_PROGRESS -> WAITING_CUSTOMER_APPROVAL
+      -> COMPLETED. CANCELLED possible before completion. REJECTED possible during triage if the
+      request is invalid/out of service area.
+      Rental flow decision: rent-related maintenance must pass Platform Admin review first, then
+      be routed to the vendor. Vendor cannot directly accept/start rental maintenance before the
+      platform sees it. This keeps liability, fraud checks, and customer protection centralized.
+      Possible extra statuses for rental path: ADMIN_REVIEW -> SENT_TO_VENDOR -> VENDOR_ACKNOWLEDGED.
+35 - Partner operating model:
+      Reuse the existing technicians/partner network concept initially, but treat maintenance
+      partners as service providers with capabilities. A partner can do inspections, maintenance,
+      or both. Do not build complex auto-dispatch in MVP; use manual assignment from dashboard.
+36 - Data model proposal:
+      - maintenance_requests: customer_id, car_id NOT NULL, deal_id nullable, vendor_id nullable,
+        assigned_partner_id nullable, request_type, status, city, preferred_time, pickup_needed,
+        notes, contact_phone, quoted_amount/currency, approved_amount/currency, timestamps.
+      - maintenance_request_files: request_id, file_url, storage_key, file_type.
+      - maintenance_updates: request_id, author_role, author_admin_id/customer_id nullable,
+        status_from/status_to, note, created_at. This gives timeline/audit history.
+      - optional later: maintenance_invoices and maintenance_payments once payment flow is real.
+      Engineering note: because external cars are out of scope, car_id should be NOT NULL in the
+      final schema. deal_id can stay nullable to support marketplace-owned cars that do not yet
+      have a closed deal link, but customer-owned "My Cars" UX should prefer deal_id when present.
+37 - Role permissions:
+      - Customer: create request, see own requests, add notes/files, approve/reject quote,
+        cancel before work starts.
+      - Vendor owner/staff: see requests related to their sold/rented cars if vendor involvement
+        is needed, add notes, coordinate with Drive X, acknowledge rental maintenance after
+        Platform Admin routes it, but not see unrelated customer requests.
+      - Platform Admin: full maintenance queue, triage, assign partner, set quote, change status,
+        close/cancel, audit all actions.
+      - Partner/technician portal: later phase. For MVP, platform admin can enter partner updates
+        manually.
+38 - Integration with deals:
+      When a deal becomes CLOSED, create or expose a "My Cars" customer asset record so the
+      customer can request maintenance for a car they bought or rented. For MVP, maintenance
+      requests must always resolve to an existing Drive X car; if no completed deal link exists,
+      Platform Admin must verify the relationship during triage before the request can proceed.
+39 - Integration with inspection history:
+      Maintenance requests should show the latest inspection/certification summary for context.
+      Completed maintenance should append to the vehicle's visible service history, but it should
+      not automatically certify the car. Certification still belongs to inspection rounds.
+      DECIDED: completed maintenance history should appear on the public car detail page. However,
+      public display must be sanitized: show service type/date/status/partner or Drive X verified
+      label and high-level notes, but never expose customer identity, phone, private complaint
+      text, invoice details, exact address, or internal admin/vendor notes.
+40 - Pricing/quote model:
+      Start with manual quote: admin reviews request, assigns partner, enters estimated amount,
+      customer approves, then work proceeds. Online payment is later; for now track quote/approval
+      and final amount as records only.
+      DECIDED FOR MVP: do not implement real payments in the first maintenance release. Keep
+      quote/approval/status tracking only, so the workflow is stable before money movement is
+      introduced.
+41 - Frontend surfaces:
+      - CustomerDashboard: new "My Cars" tab and "Maintenance" tab.
+      - Maintenance request dialog with upload support.
+      - Dashboard.tsx admin/platform tab: maintenance queue with filters by status, city, partner,
+        request type, and date.
+      - CarDetail: "Request Maintenance" only for logged-in customers; for visitors route to login.
+42 - Backend endpoints (proposal):
+      - POST /v1/public/maintenance/requests (customer auth)
+      - GET /v1/public/me/maintenance/requests (customer auth)
+      - GET /v1/public/me/cars (customer auth, derived from completed deals)
+      - POST /v1/public/maintenance/requests/:id/files (customer auth)
+      - PATCH /v1/public/maintenance/requests/:id/cancel (customer auth)
+      - PATCH /v1/public/maintenance/requests/:id/approve-quote (customer auth)
+      - GET /v1/admin/maintenance/requests
+      - PATCH /v1/admin/maintenance/requests/:id/triage
+      - PATCH /v1/admin/maintenance/requests/:id/assign
+      - PATCH /v1/admin/maintenance/requests/:id/schedule
+      - PATCH /v1/admin/maintenance/requests/:id/status
+      - POST /v1/admin/maintenance/requests/:id/updates
+43 - Build order:
+      1) backend schema + types + validators,
+      2) customer create/list/cancel/approve endpoints,
+      3) admin list/triage/assign/status endpoints,
+      4) minimal frontend customer tab,
+      5) admin maintenance queue,
+      6) seed demo maintenance requests,
+      7) tests for state transitions and vendor/customer scoping.
+      DECIDED: build maintenance as a full product, delivered in phases. Phase 1 is the
+      foundation, not the final scope. Phase 2 is part of the intended system roadmap and should
+      be designed for from day one, even if implemented after Phase 1 is stable.
+      Phase 1 - foundation:
+      - customer "My Cars" surface,
+      - create maintenance request,
+      - Platform Admin maintenance queue,
+      - basic state transitions,
+      - rental requests pass Platform Admin first, then vendor,
+      - completed maintenance appears as sanitized service history on CarDetail.
+      Phase 2 - full workflow expansion:
+      - quote approval polish,
+      - richer file attachments,
+      - notifications,
+      - stronger rental responsibility workflow,
+      - partner/technician portal,
+      - payment/invoice flow.
+      Engineering requirement: Phase 1 schema/API should not paint us into a corner. Keep audit
+      trails, status history, nullable future payment/invoice references, partner assignment, and
+      public/private record separation ready for Phase 2.
+44 - Out of scope for MVP:
+      - automatic partner dispatch/routing,
+      - real online payment,
+      - partner mobile portal,
+      - live chat,
+      - warranty contracts,
+      - predictive maintenance reminders.
+      - emergency maintenance workflow/SLA until the business rules are discussed in detail.
+45 - Open decisions before implementation:
+      - Emergency priority/SLA needs deeper discussion before implementation and should remain
+        disabled/hidden or marked as later until then.
+      - For sold cars, decide whether Platform Admin always triages first or whether simple
+        routine service can go directly into scheduling.
+      - Decide the exact public/private field split for completed maintenance records before
+        exposing them on CarDetail.

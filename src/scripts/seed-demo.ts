@@ -902,6 +902,12 @@ const customers: CustomerSeed[] = [
     favoriteCarIndexes: [4, 9, 21]
   },
   {
+    fullName: 'Rami Saleh',
+    email: 'rami.saleh@example.com',
+    phone: '+963 988 400 404',
+    favoriteCarIndexes: [3, 15, 22]
+  },
+  {
     fullName: 'Hala Kassem',
     email: 'hala.kassem@example.com',
     phone: '+963 988 900 909',
@@ -918,6 +924,12 @@ const customers: CustomerSeed[] = [
     email: 'sara.omari@example.com',
     phone: '+963 933 444 555',
     favoriteCarIndexes: [2, 10, 16, 28]
+  },
+  {
+    fullName: 'Dima Farah',
+    email: 'dima.farah@example.com',
+    phone: '+963 944 222 333',
+    favoriteCarIndexes: [10, 14, 26]
   },
   {
     fullName: 'Bassel Agha',
@@ -991,6 +1003,7 @@ async function main() {
       await cloudinary.api.delete_resources_by_prefix(`drivex/cars/${staleCarId}`).catch(() => undefined);
     }
 
+    await client.query(`DELETE FROM maintenance_requests WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM deals WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM leads WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
     await client.query(`DELETE FROM customer_favorites WHERE car_id = ANY($1::uuid[])`, [staleCarIds]);
@@ -1089,6 +1102,7 @@ async function main() {
     }
 
     const customerIds: string[] = [];
+    const customerIdByEmail = new Map<string, string>();
     for (const customer of customers) {
       const result = await client.query<{ id: string }>(
         `INSERT INTO customer_users (email, password_hash, full_name, phone)
@@ -1098,6 +1112,7 @@ async function main() {
       );
       const customerId = result.rows[0].id;
       customerIds.push(customerId);
+      customerIdByEmail.set(customer.email, customerId);
 
       for (const carIndex of customer.favoriteCarIndexes) {
         const carId = carIds[carIndex];
@@ -1171,14 +1186,17 @@ async function main() {
       }
     ];
 
+    const dealIds: string[] = [];
+
     for (const deal of deals) {
       const amount = commissionAmount(deal.finalPrice.amount, deal.commissionType, deal.commissionValue);
 
-      await client.query(
+      const dealResult = await client.query<{ id: string }>(
         `INSERT INTO deals (
           lead_id, car_id, type, final_price_amount, final_price_currency,
           commission_type, commission_value, commission_amount, commission_currency, notes, created_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        RETURNING id`,
         [
           leadIds[deal.leadIndex],
           carIds[deal.carIndex],
@@ -1193,6 +1211,7 @@ async function main() {
           ownerId
         ]
       );
+      dealIds.push(dealResult.rows[0].id);
 
       // Mirror deals.service.ts's createDeal side effects so the seeded example
       // deals leave the car/lead in the same consistent state a real deal would.
@@ -1207,6 +1226,100 @@ async function main() {
       ]);
     }
 
+    const maintenanceSeeds = [
+      {
+        customerEmail: 'maya.nasser@example.com',
+        carIndex: 4,
+        dealIndex: 0,
+        requestType: 'ROUTINE_SERVICE',
+        status: 'COMPLETED',
+        city: 'Damascus',
+        notes: 'Customer requested a first post-sale oil and filter service.',
+        publicSummary: 'Oil and filter service completed after purchase.',
+        contactPhone: '+963 966 500 505',
+        quote: 75
+      },
+      {
+        customerEmail: 'dima.farah@example.com',
+        carIndex: 10,
+        dealIndex: 1,
+        requestType: 'DIAGNOSTIC',
+        status: 'ADMIN_REVIEW',
+        city: 'Damascus',
+        notes: 'Renter reports a warning light during the rental period.',
+        publicSummary: null,
+        contactPhone: '+963 944 222 333',
+        quote: null
+      },
+      {
+        customerEmail: 'rami.saleh@example.com',
+        carIndex: 3,
+        dealIndex: 2,
+        requestType: 'REPAIR',
+        status: 'NEW',
+        city: 'Aleppo',
+        notes: 'Customer hears brake noise after handover.',
+        publicSummary: null,
+        contactPhone: '+963 988 400 404',
+        quote: null
+      }
+    ] as const;
+
+    for (const item of maintenanceSeeds) {
+      const customerId = customerIdByEmail.get(item.customerEmail);
+      if (!customerId) {
+        throw new Error(`Missing seeded customer for maintenance request: ${item.customerEmail}`);
+      }
+
+      const result = await client.query<{ id: string }>(
+        `INSERT INTO maintenance_requests (
+          customer_id, car_id, deal_id, vendor_id, assigned_partner_id, request_type, status,
+          city, preferred_time, pickup_needed, notes, contact_phone,
+          quoted_amount, quoted_currency, approved_amount, approved_currency,
+          quote_approved_at, public_summary, completed_at
+        ) VALUES (
+          $1,$2,$3,$4,NULL,$5,$6,$7,NOW() + INTERVAL '3 days',$8,$9,$10,
+          $11,$12,$13,$14,$15,$16,$17
+        )
+        RETURNING id`,
+        [
+          customerId,
+          carIds[item.carIndex],
+          dealIds[item.dealIndex],
+          vendorId,
+          item.requestType,
+          item.status,
+          item.city,
+          item.status !== 'COMPLETED',
+          `${DEMO_MARKER} ${item.notes}`,
+          item.contactPhone,
+          item.quote,
+          item.quote ? 'USD' : null,
+          item.status === 'COMPLETED' ? item.quote : null,
+          item.status === 'COMPLETED' && item.quote ? 'USD' : null,
+          item.status === 'COMPLETED' ? new Date().toISOString() : null,
+          item.publicSummary,
+          item.status === 'COMPLETED' ? new Date().toISOString() : null
+        ]
+      );
+
+      await client.query(
+        `INSERT INTO maintenance_updates (
+          request_id, author_role, author_customer_id, status_from, status_to, note, is_public
+        ) VALUES ($1,'CUSTOMER',$2,NULL,$3,$4,FALSE)`,
+        [result.rows[0].id, customerId, item.status, `${DEMO_MARKER} Maintenance request opened.`]
+      );
+
+      if (item.status === 'COMPLETED') {
+        await client.query(
+          `INSERT INTO maintenance_updates (
+            request_id, author_role, author_admin_id, status_from, status_to, note, is_public
+          ) VALUES ($1,'PLATFORM_ADMIN',$2,'IN_PROGRESS','COMPLETED',$3,TRUE)`,
+          [result.rows[0].id, ownerId, item.publicSummary]
+        );
+      }
+    }
+
     await client.query('COMMIT');
 
     console.log('Seeded demo data successfully.');
@@ -1214,7 +1327,7 @@ async function main() {
     console.log('Staff login: staff@drivex.com / staff1234');
     console.log('Customer logins: use any listed customer email / customer123');
     const totalImages = Object.values(SEED_IMAGE_FILES).reduce((sum, files) => sum + files.length, 0);
-    console.log(`Cars: ${allCars.length}, image uploads: ${allCars.length * 2}, customers: ${customers.length}, leads: ${leads.length}, deals: ${deals.length}`);
+    console.log(`Cars: ${allCars.length}, image uploads: ${allCars.length * 2}, customers: ${customers.length}, leads: ${leads.length}, deals: ${deals.length}, maintenance requests: ${maintenanceSeeds.length}`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

@@ -8,6 +8,7 @@ import { dealRoutes } from './modules/deals/deals.routes';
 import { favoriteRoutes } from './modules/favorites/favorites.routes';
 import { inspectionRoutes, publicInspectionRoutes } from './modules/inspections/inspections.routes';
 import { adminLeadRoutes, publicLeadRoutes } from './modules/leads/leads.routes';
+import { adminMaintenanceRoutes, publicMaintenanceRoutes } from './modules/maintenance/maintenance.routes';
 import { platformVendorRoutes, publicVendorRoutes } from './modules/vendors/vendors.routes';
 
 export const router = Router();
@@ -17,6 +18,7 @@ router.use('/public', publicLeadRoutes);
 router.use('/public', customerRoutes);
 router.use('/public', favoriteRoutes);
 router.use('/public', publicInspectionRoutes);
+router.use('/public', publicMaintenanceRoutes);
 router.use('/public', publicVendorRoutes);
 router.use('/public', publicComplaintRoutes);
 
@@ -26,5 +28,6 @@ router.use('/admin', adminLeadRoutes);
 router.use('/admin', dealRoutes);
 router.use('/admin', dashboardRoutes);
 router.use('/admin', inspectionRoutes);
+router.use('/admin', adminMaintenanceRoutes);
 router.use('/admin', platformVendorRoutes);
 router.use('/admin', platformComplaintRoutes);

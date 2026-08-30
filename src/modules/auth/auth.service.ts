@@ -139,6 +139,70 @@ export async function logout(refreshToken: string) {
   ]);
 }
 
+function generateResetToken() {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  return { rawToken, tokenHash: hashToken(rawToken) };
+}
+
+export async function requestPasswordReset(email: string) {
+  const result = await query<AdminUserRow>(
+    `SELECT id, email FROM admin_users WHERE email = $1`,
+    [email]
+  );
+  const admin = result.rows[0];
+
+  if (!admin) {
+    return { message: 'If an account exists for that email, a reset link has been generated.' };
+  }
+
+  await query(
+    `UPDATE admin_password_reset_tokens SET used_at = NOW() WHERE admin_user_id = $1 AND used_at IS NULL`,
+    [admin.id]
+  );
+
+  const { rawToken, tokenHash } = generateResetToken();
+
+  await query(
+    `INSERT INTO admin_password_reset_tokens (admin_user_id, token_hash, expires_at)
+     VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+    [admin.id, tokenHash]
+  );
+
+  return {
+    message: 'If an account exists for that email, a reset link has been generated.',
+    resetToken: rawToken,
+    email: admin.email
+  };
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = hashToken(token);
+  const result = await query<{ admin_user_id: string }>(
+    `SELECT admin_user_id FROM admin_password_reset_tokens
+     WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+    [tokenHash]
+  );
+
+  if (!result.rows[0]) {
+    throw unauthorized('Invalid or expired reset token');
+  }
+
+  const adminUserId = result.rows[0].admin_user_id;
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  await query(`UPDATE admin_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
+    passwordHash,
+    adminUserId
+  ]);
+
+  await query(`UPDATE admin_password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+  await query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE admin_user_id = $1 AND revoked_at IS NULL`, [
+    adminUserId
+  ]);
+
+  return { message: 'Password has been reset successfully.' };
+}
+
 export async function getProfile(id: string) {
   const result = await query<AdminUserRow>(
     `SELECT id, email, full_name, role, vendor_id FROM admin_users WHERE id = $1`,

@@ -46,3 +46,19 @@ export const updateProfile: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const forgotPassword: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await authService.requestPasswordReset(req.body.email));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resetPassword: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await authService.resetPassword(req.body.token, req.body.newPassword));
+  } catch (err) {
+    next(err);
+  }
+};
+

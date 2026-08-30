@@ -49,3 +49,19 @@ export const updateProfile: RequestHandler = async (req, res, next) => {
     next(err);
   }
 };
+
+export const forgotPassword: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await customerService.requestPasswordReset(req.body.email));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resetPassword: RequestHandler = async (req, res, next) => {
+  try {
+    res.json(await customerService.resetPassword(req.body.token, req.body.newPassword));
+  } catch (err) {
+    next(err);
+  }
+};

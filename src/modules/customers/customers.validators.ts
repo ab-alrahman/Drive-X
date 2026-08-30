@@ -20,3 +20,12 @@ export const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(120).optional(),
   phone: z.string().min(6).max(30).optional()
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(32),
+  newPassword: z.string().min(8).max(100)
+});

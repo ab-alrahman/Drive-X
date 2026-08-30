@@ -174,6 +174,70 @@ export async function logout(refreshToken: string) {
   ]);
 }
 
+function generateResetToken() {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  return { rawToken, tokenHash: hashToken(rawToken) };
+}
+
+export async function requestPasswordReset(email: string) {
+  const result = await query<Pick<CustomerRow, 'id' | 'email'>>(
+    `SELECT id, email FROM customer_users WHERE email = $1`,
+    [email]
+  );
+  const customer = result.rows[0];
+
+  if (!customer) {
+    return { message: 'If an account exists for that email, a reset link has been generated.' };
+  }
+
+  await query(
+    `UPDATE customer_password_reset_tokens SET used_at = NOW() WHERE customer_user_id = $1 AND used_at IS NULL`,
+    [customer.id]
+  );
+
+  const { rawToken, tokenHash } = generateResetToken();
+
+  await query(
+    `INSERT INTO customer_password_reset_tokens (customer_user_id, token_hash, expires_at)
+     VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+    [customer.id, tokenHash]
+  );
+
+  return {
+    message: 'If an account exists for that email, a reset link has been generated.',
+    resetToken: rawToken,
+    email: customer.email
+  };
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = hashToken(token);
+  const result = await query<{ customer_user_id: string }>(
+    `SELECT customer_user_id FROM customer_password_reset_tokens
+     WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+    [tokenHash]
+  );
+
+  if (!result.rows[0]) {
+    throw unauthorized('Invalid or expired reset token');
+  }
+
+  const customerUserId = result.rows[0].customer_user_id;
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  await query(`UPDATE customer_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
+    passwordHash,
+    customerUserId
+  ]);
+
+  await query(`UPDATE customer_password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+  await query(`UPDATE customer_refresh_tokens SET revoked_at = NOW() WHERE customer_user_id = $1 AND revoked_at IS NULL`, [
+    customerUserId
+  ]);
+
+  return { message: 'Password has been reset successfully.' };
+}
+
 export async function getById(customerId: string) {
   const result = await query<CustomerRow>(
     `SELECT id, email, password_hash, full_name, phone FROM customer_users WHERE id = $1`,

@@ -13,6 +13,14 @@ export const getMyCars: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const listWorkshops: RequestHandler = async (_req, res, next) => {
+  try {
+    res.json(await maintenanceService.listActiveWorkshops());
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const createCustomerRequest: RequestHandler = async (req, res, next) => {
   try {
     res.status(201).json(await maintenanceService.createCustomerRequest(req.customer!.id, req.body));

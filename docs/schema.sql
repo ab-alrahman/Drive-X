@@ -374,6 +374,7 @@ CREATE TABLE IF NOT EXISTS maintenance_requests (
   deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
   vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL,
   assigned_partner_id UUID REFERENCES technicians(id) ON DELETE SET NULL,
+  preferred_partner_id UUID REFERENCES technicians(id) ON DELETE SET NULL,
   request_type VARCHAR(30) NOT NULL CHECK (
     request_type IN ('ROUTINE_SERVICE', 'REPAIR', 'DIAGNOSTIC', 'BODY_PAINT', 'TIRES_BRAKES', 'EMERGENCY', 'OTHER')
   ),
@@ -426,7 +427,32 @@ CREATE INDEX IF NOT EXISTS idx_maintenance_requests_customer ON maintenance_requ
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_car ON maintenance_requests (car_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_deal ON maintenance_requests (deal_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_vendor ON maintenance_requests (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_requests_preferred_partner ON maintenance_requests (preferred_partner_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_status ON maintenance_requests (status);
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_created ON maintenance_requests (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_maintenance_updates_request ON maintenance_updates (request_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_files_request ON maintenance_request_files (request_id);
+
+CREATE TABLE IF NOT EXISTS chat_threads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customer_users(id) ON DELETE CASCADE,
+  vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+  last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (car_id, customer_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  thread_id UUID NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
+  sender_type VARCHAR(10) NOT NULL CHECK (sender_type IN ('CUSTOMER', 'VENDOR')),
+  sender_id UUID NOT NULL,
+  body TEXT NOT NULL,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_threads_customer ON chat_threads (customer_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_vendor ON chat_threads (vendor_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages (thread_id, created_at);

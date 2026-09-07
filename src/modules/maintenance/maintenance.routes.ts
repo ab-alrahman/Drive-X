@@ -15,6 +15,7 @@ import {
 export const publicMaintenanceRoutes = Router();
 
 publicMaintenanceRoutes.get('/cars/:carId/maintenance/history', controller.getPublicCarMaintenanceHistory);
+publicMaintenanceRoutes.get('/maintenance/workshops', requireCustomerAuth, controller.listWorkshops);
 publicMaintenanceRoutes.get('/me/cars', requireCustomerAuth, controller.getMyCars);
 publicMaintenanceRoutes.get('/me/maintenance/requests', requireCustomerAuth, controller.listCustomerRequests);
 publicMaintenanceRoutes.get('/maintenance/requests/:requestId', requireCustomerAuth, controller.getCustomerRequest);

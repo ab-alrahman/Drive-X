@@ -28,6 +28,7 @@ export const maintenanceStatusSchema = z.enum([
 export const createMaintenanceRequestSchema = z.object({
   carId: z.string().uuid(),
   dealId: z.string().uuid().optional(),
+  preferredWorkshopId: z.string().uuid().optional(),
   requestType: maintenanceRequestTypeSchema,
   city: z.string().min(1).max(80),
   preferredTime: z.string().datetime().optional(),

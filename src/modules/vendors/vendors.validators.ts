@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { personNameSchema } from '../../shared/validators';
 
 export const registerVendorSchema = z.object({
   vendorName: z.string().min(2).max(160),
-  ownerFullName: z.string().min(2).max(120),
+  ownerFullName: personNameSchema,
   ownerEmail: z.string().email(),
   ownerPassword: z.string().min(8).max(100)
 });

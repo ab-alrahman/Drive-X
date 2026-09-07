@@ -38,6 +38,8 @@ function mapMaintenanceRequest(row: any, updates: any[] = [], files: any[] = [])
     vendorName: row.vendor_name ?? undefined,
     assignedPartnerId: row.assigned_partner_id ?? undefined,
     assignedPartnerName: row.assigned_partner_name ?? undefined,
+    preferredPartnerId: row.preferred_partner_id ?? undefined,
+    preferredPartnerName: row.preferred_partner_name ?? undefined,
     requestType: row.request_type,
     status: row.status,
     city: row.city,
@@ -118,13 +120,15 @@ function baseSelect() {
       c.brand, c.model, c.year, c.listing_type, ci.image_url AS primary_image,
       d.type AS deal_type,
       v.name AS vendor_name,
-      t.name AS assigned_partner_name
+      t.name AS assigned_partner_name,
+      pt.name AS preferred_partner_name
     FROM maintenance_requests mr
     JOIN customer_users cu ON cu.id = mr.customer_id
     JOIN cars c ON c.id = mr.car_id
     LEFT JOIN deals d ON d.id = mr.deal_id
     LEFT JOIN vendors v ON v.id = mr.vendor_id
     LEFT JOIN technicians t ON t.id = mr.assigned_partner_id
+    LEFT JOIN technicians pt ON pt.id = mr.preferred_partner_id
     LEFT JOIN (
       SELECT car_id, image_url, ROW_NUMBER() OVER (PARTITION BY car_id ORDER BY is_primary DESC, position ASC) AS rn
       FROM car_images
@@ -197,6 +201,23 @@ async function findCustomerDeal(client: PoolClient, customerId: string, carId: s
   return result.rows[0] ?? null;
 }
 
+export async function listActiveWorkshops() {
+  const result = await query(
+    `SELECT id, name, city, phone, specialty, service_tiers
+     FROM technicians
+     WHERE is_active = TRUE
+     ORDER BY name`
+  );
+  return result.rows.map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    phone: row.phone ?? undefined,
+    specialty: row.specialty ?? undefined,
+    serviceTiers: row.service_tiers ?? []
+  }));
+}
+
 export async function getMyCars(customerId: string) {
   const customer = await query(`SELECT email FROM customer_users WHERE id = $1`, [customerId]);
   if (!customer.rows[0]) {
@@ -235,18 +256,31 @@ export async function createCustomerRequest(customerId: string, data: any) {
       throw forbidden('This deal is not linked to your account.');
     }
 
+    let preferredPartnerId: string | null = null;
+    if (data.preferredWorkshopId) {
+      const workshop = await client.query(
+        `SELECT id FROM technicians WHERE id = $1 AND is_active = TRUE`,
+        [data.preferredWorkshopId]
+      );
+      if (!workshop.rows[0]) {
+        throw notFound('Technician not found or inactive');
+      }
+      preferredPartnerId = workshop.rows[0].id;
+    }
+
     const initialStatus: MaintenanceStatus = deal?.type === 'RENT' ? 'ADMIN_REVIEW' : 'NEW';
     const result = await client.query(
       `INSERT INTO maintenance_requests (
-        customer_id, car_id, deal_id, vendor_id, request_type, status, city, preferred_time,
+        customer_id, car_id, deal_id, vendor_id, preferred_partner_id, request_type, status, city, preferred_time,
         pickup_needed, notes, contact_phone
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *`,
       [
         customerId,
         data.carId,
         deal?.id ?? data.dealId ?? null,
         car.rows[0].vendor_id,
+        preferredPartnerId,
         data.requestType,
         initialStatus,
         data.city,

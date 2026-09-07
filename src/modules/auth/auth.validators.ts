@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { personNameSchema } from '../../shared/validators';
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -10,7 +11,7 @@ export const refreshTokenSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().min(2).max(120)
+  fullName: personNameSchema
 });
 
 export const forgotPasswordSchema = z.object({

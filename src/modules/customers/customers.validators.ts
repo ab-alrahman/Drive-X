@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { personNameSchema } from '../../shared/validators';
 
 export const customerRegisterSchema = z.object({
-  fullName: z.string().min(2).max(120),
+  fullName: personNameSchema,
   email: z.string().email(),
   phone: z.string().min(6).max(30).optional(),
   password: z.string().min(8).max(100)
@@ -17,7 +18,7 @@ export const customerRefreshSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().min(2).max(120).optional(),
+  fullName: personNameSchema.optional(),
   phone: z.string().min(6).max(30).optional()
 });
 

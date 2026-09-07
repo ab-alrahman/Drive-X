@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authRoutes } from './modules/auth/auth.routes';
 import { adminCarRoutes, publicCarRoutes } from './modules/cars/cars.routes';
+import { adminChatRoutes, publicChatRoutes } from './modules/chat/chat.routes';
 import { platformComplaintRoutes, publicComplaintRoutes } from './modules/complaints/complaints.routes';
 import { customerRoutes } from './modules/customers/customers.routes';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes';
@@ -19,6 +20,7 @@ router.use('/public', customerRoutes);
 router.use('/public', favoriteRoutes);
 router.use('/public', publicInspectionRoutes);
 router.use('/public', publicMaintenanceRoutes);
+router.use('/public', publicChatRoutes);
 router.use('/public', publicVendorRoutes);
 router.use('/public', publicComplaintRoutes);
 
@@ -29,5 +31,6 @@ router.use('/admin', dealRoutes);
 router.use('/admin', dashboardRoutes);
 router.use('/admin', inspectionRoutes);
 router.use('/admin', adminMaintenanceRoutes);
+router.use('/admin', adminChatRoutes);
 router.use('/admin', platformVendorRoutes);
 router.use('/admin', platformComplaintRoutes);

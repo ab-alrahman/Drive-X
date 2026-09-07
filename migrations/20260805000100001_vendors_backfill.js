@@ -18,10 +18,20 @@ WHERE role IN ('OWNER', 'STAFF') AND vendor_id IS NULL;
 
 ALTER TABLE cars ALTER COLUMN vendor_id SET NOT NULL;
 
-ALTER TABLE admin_users ADD CONSTRAINT admin_users_role_vendor_check CHECK (
-  (role = 'PLATFORM_ADMIN' AND vendor_id IS NULL) OR
-  (role IN ('OWNER', 'STAFF') AND vendor_id IS NOT NULL)
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'admin_users_role_vendor_check'
+      AND conrelid = 'admin_users'::regclass
+  ) THEN
+    ALTER TABLE admin_users ADD CONSTRAINT admin_users_role_vendor_check CHECK (
+      (role = 'PLATFORM_ADMIN' AND vendor_id IS NULL) OR
+      (role IN ('OWNER', 'STAFF') AND vendor_id IS NOT NULL)
+    );
+  END IF;
+END $$;
 `);
 };
 

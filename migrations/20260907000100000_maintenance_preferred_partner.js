@@ -4,7 +4,22 @@
 exports.up = (pgm) => {
   pgm.sql(`
 ALTER TABLE maintenance_requests
-  ADD COLUMN IF NOT EXISTS preferred_partner_id UUID REFERENCES technicians(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS preferred_partner_id UUID;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'maintenance_requests_preferred_partner_id_fkey'
+  ) THEN
+    ALTER TABLE maintenance_requests
+      ADD CONSTRAINT maintenance_requests_preferred_partner_id_fkey
+      FOREIGN KEY (preferred_partner_id)
+      REFERENCES technicians(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_maintenance_requests_preferred_partner
   ON maintenance_requests (preferred_partner_id);

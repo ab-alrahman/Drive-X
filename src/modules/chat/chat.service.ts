@@ -84,16 +84,13 @@ export async function createOrGetThreadForCustomer(customerId: string, carId: st
       throw notFound('Car not found');
     }
 
-    const existing = await client.query(
-      `SELECT id FROM chat_threads WHERE car_id = $1 AND customer_id = $2`,
-      [carId, customerId]
-    );
-    if (existing.rows[0]) {
-      return existing.rows[0].id as string;
-    }
-
+    // One thread per (car, customer). ON CONFLICT keeps this race-safe against a
+    // double-submit: the no-op UPDATE lets RETURNING give back the existing row.
     const inserted = await client.query(
-      `INSERT INTO chat_threads (car_id, customer_id, vendor_id) VALUES ($1, $2, $3) RETURNING id`,
+      `INSERT INTO chat_threads (car_id, customer_id, vendor_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (car_id, customer_id) DO UPDATE SET car_id = EXCLUDED.car_id
+       RETURNING id`,
       [carId, customerId, car.rows[0].vendor_id]
     );
     return inserted.rows[0].id as string;
